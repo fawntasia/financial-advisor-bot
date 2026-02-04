@@ -743,7 +743,7 @@ print('RSI validation passed')
 
 ---
 
-- [ ] 11. LSTM Model Development
+- [x] 11. LSTM Model Development
 
   **What to do**:
   - Create `src/models/lstm_model.py` - LSTM architecture and training
