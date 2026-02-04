@@ -827,7 +827,7 @@ assert test_acc > 0.50, 'Accuracy below random'
 
 ---
 
-- [ ] 12. Random Forest Model Implementation
+- [x] 12. Random Forest Model Implementation
 
   **What to do**:
   - Create `src/models/random_forest_model.py` - Random Forest classifier

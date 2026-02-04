@@ -123,6 +123,40 @@ class StockDataProcessor:
         scaled = self.scaler.transform(dataset)
         return np.reshape(scaled, (1, sequence_length, len(feature_cols)))
 
+    def prepare_for_classification(self, df: pd.DataFrame, target_col: str = 'Close'):
+        """
+        Prepare data for classification (Random Forest).
+        Target: 1 if Next Close > Current Close, else 0.
+        Returns: X_train, y_train, X_test, y_test, feature_cols
+        """
+        df = df.copy()
+        
+        # Enrichment
+        if 'RSI' not in df.columns:
+            df = self.add_technical_indicators(df)
+            
+        # Create Target: 1 if Close(t+1) > Close(t), else 0
+        df['Target'] = (df['Close'].shift(-1) > df['Close']).astype(int)
+        
+        # Drop the last row because it has no future target
+        df = df.iloc[:-1]
+        
+        feature_cols = ['Close', 'SMA_20', 'SMA_50', 'RSI', 'MACD', 'Signal_Line']
+        self.feature_cols = feature_cols
+        
+        # Split Data (80/20) - Time Series split (no shuffling)
+        split_idx = int(len(df) * 0.8)
+        train_df = df.iloc[:split_idx]
+        test_df = df.iloc[split_idx:]
+        
+        X_train = train_df[feature_cols].values
+        y_train = train_df['Target'].values
+        
+        X_test = test_df[feature_cols].values
+        y_test = test_df['Target'].values
+        
+        return X_train, y_train, X_test, y_test, feature_cols
+
 # Helper functions for backward compatibility or simple usage
 def fetch_stock_data(ticker="AAPL", years=5):
     processor = StockDataProcessor(ticker)
