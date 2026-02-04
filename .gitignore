@@ -1,0 +1,89 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+data/financial_advisor.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Model Files (large binaries)
+models/*.pth
+models/*.h5
+models/*.pkl
+models/*.json
+models/finbert/
+models/llama3/
+*.bin
+*.gguf
+
+# Data Files
+data/raw/*
+data/processed/*
+data/archive/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/archive/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Cache
+cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Temporary
+tmp/
+temp/
+*.tmp
