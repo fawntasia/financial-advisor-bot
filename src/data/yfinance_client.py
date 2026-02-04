@@ -10,7 +10,7 @@ import pickle
 import hashlib
 from pathlib import Path
 from typing import Dict, List, Optional
-from functools import wraps
+from src.utils.retry import retry_with_backoff
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -18,26 +18,6 @@ logger = logging.getLogger(__name__)
 # Cache directory
 CACHE_DIR = Path("data/cache/yfinance")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def retry_with_backoff(max_attempts=5, base_delay=1):
-    """Decorator for retry logic with exponential backoff."""
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            for attempt in range(max_attempts):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    if attempt == max_attempts - 1:
-                        logger.error(f"Failed after {max_attempts} attempts: {e}")
-                        raise
-                    delay = base_delay * (2 ** attempt)
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
-                    time.sleep(delay)
-            return None
-        return wrapper
-    return decorator
 
 
 class YFinanceClient:
