@@ -6,6 +6,7 @@ Centralized handling for fetching and preprocessing stock data for various model
 import yfinance as yf
 import numpy as np
 import pandas as pd
+from typing import Optional
 from sklearn.preprocessing import MinMaxScaler
 from datetime import datetime, timedelta
 
@@ -16,7 +17,7 @@ class StockDataProcessor:
     
     def __init__(self, ticker: str = "AAPL"):
         self.ticker = ticker
-        self.data: pd.DataFrame = None
+        self.data: Optional[pd.DataFrame] = None
         self.scaler = MinMaxScaler(feature_range=(0, 1))
         self.target_scaler = MinMaxScaler(feature_range=(0, 1)) # Scaler just for the target value
         

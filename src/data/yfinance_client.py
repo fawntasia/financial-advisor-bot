@@ -54,7 +54,7 @@ class YFinanceClient:
             time.sleep(self.rate_limit_delay - elapsed)
         self.last_request_time = time.time()
     
-    def _get_cache_key(self, ticker: str, period: str, start: str = None, end: str = None) -> str:
+    def _get_cache_key(self, ticker: str, period: str, start: Optional[str] = None, end: Optional[str] = None) -> str:
         """Generate cache key for a request."""
         key_data = f"{ticker}_{period}_{start}_{end}"
         return hashlib.md5(key_data.encode()).hexdigest()
@@ -96,7 +96,7 @@ class YFinanceClient:
     
     @retry_with_backoff(max_attempts=5, base_delay=1)
     def _fetch_from_yfinance(self, ticker: str, period: str = '5y', 
-                           start: str = None, end: str = None) -> pd.DataFrame:
+                           start: Optional[str] = None, end: Optional[str] = None) -> pd.DataFrame:
         """Fetch data from yfinance with retry logic."""
         self._rate_limit()
         
@@ -114,7 +114,7 @@ class YFinanceClient:
         return df
     
     def get_ticker(self, ticker: str, period: str = '5y', 
-                   start: str = None, end: str = None,
+                   start: Optional[str] = None, end: Optional[str] = None,
                    use_cache: bool = True) -> pd.DataFrame:
         """
         Fetch data for a single ticker.
