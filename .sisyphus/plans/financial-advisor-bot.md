@@ -672,7 +672,7 @@ print('RSI validation passed')
 
 ---
 
-- [ ] 10. Baseline Models Implementation
+- [x] 10. Baseline Models Implementation
 
   **What to do**:
   - Create `src/models/baselines.py` - baseline strategy implementations
