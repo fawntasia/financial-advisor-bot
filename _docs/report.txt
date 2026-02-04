@@ -1,0 +1,140 @@
+ CHAPTER 1:	 INTRODUCTION
+This project aims to develop an intelligent financial advisor bot capable of analyzing historical and real-world financial data to generate personalized investment recommendations for users. The system will leverage machine learning models and large language models to identify market patterns, evaluate risks, and propose investment strategies tailored to user preferences. 
+
+The main motivation for this project stems from the growing complexity of financial markets as well as the demand for accessible, data-driven investment guidance. Traditional financial advisory services are often expensive, or inaccessible to everyday investors. By combining machine learning and natural language processing, this project seeks to make personalized financial investing advice available to everyone.
+
+The primary aims and research questions that this project hopefully aims to address are:
+1.	Can machines predict future stock trends using only historical data
+2.	Does the integration of sentiment analysis of financial news headlines improve predictions?
+3.	Can a LLM-powered conversational interface help to provide an intuitive, conversational approach to financial insight?
+
+
+
+The project objectives and deliverables that this project hopes to achieve are:
+1.	Scope limitation 
+This project will focus exclusively on the stock market. This is because other financial assets like bonds, currencies, cryptocurrencies require different types of analytical approaches. They also exhibit very high volatility which makes them not suitable for investments. Limiting the scope will also help with making sure that we can achieve depth in our implementation and thoroughly validate the selected models.
+2.	Data collection and integration
+A data pipeline will be developed in order to collect historical and real time financial data via APIs and also to collect real-time news to handle the sentiment analysis. This data will be used for model training and to make predictions.
+3.	Model training and development
+This project hopes to implement and perform a comparative analysis of multiple machine learning architectures. By training and evaluating a number of models, we can use the results to make a better forecast.
+4.	Interactive web interface
+A user-friendly web interface will be developed. This is what will be presented to the end user as the financial advisor bot. The users will be able to use natural language to query the bot for advice, visualize market data as well as model predictions. And to receive a sentiment analysis on the market.
+
+The deliverables will be as follows:
+1.	Data ingestion system: A pipeline that is able to extract, transform, load the financial data.
+2.	Prediction Models: Trained and validated machine learning models to make predictions.
+3.	Web application: A web-based interface with a chat interface for user input.
+4.	Visual analytics: Charts and graphs to show current data and future predictions
+5.	Final Dissertation: A comprehensive final report documenting methodology, future architectural decisions, findings.
+
+CHAPTER 2:	 LITERATURE REVIEW
+This literature review examines some of the academic research available and relevant to the development of a financial advisor bot. The review covers the following areas. 1) Large Language models for financial analysis. 2) Sentiment analysis using pre-trained language models. 3) LSTM neural networks for time-series prediction. 4) Ensemble methods for stock prediction. 5) LLM-integrated approaches for stock movement forecasting. 6) Limitations and ethical considerations of AI-based financial prediction.
+
+1.	Large Language Models in Financial Analysis
+Research has demonstrated the significant potential of Large Language Models (LLMs) in financial analysis. A comprehensive study by Alex G. Kim, Maximilian Muhn, Valeri V. Nikolaev (2024), titled "Financial Statement Analysis with Large Language Models," explored whether LLMs can successfully perform financial statement analysis. Published as a working paper at the University of Chicago Booth School of Business. The study found that GPT-4 achieved prediction accuracy comparable to or exceeding professional financial analysts when analysing standardised financial statements. The authors demonstrated that LLMs can identify patterns in financial data that may be overlooked by human analysts, making them valuable tools for financial prediction tasks. Notably, the study employed "chain-of-thought" prompting methods that enabled the model to generate useful narrative insights about a company's future performance.
+
+This research shows that integration of LLM capabilities into the proposed financial advisor can help to provide meaningful financial insight to users. However, the study also notes important limitations such as the potential for hallucination, as well as the lack of data sources that can be used for training.
+
+2.	Sentiment analysis with FinBERT
+Araci (2019) introduced FinBERT in the paper "FinBERT: Financial Sentiment Analysis with Pre-trained Language Models," a BERT-based language model specifically adapted for financial natural language processing tasks. The research, developed at the University of Amsterdam, demonstrated that domain-specific pre-training significantly improves sentiment classification accuracy in financial contexts.
+
+Building on this foundation, Huang, Wang, and Yang published "FinBERT: A Large Language Model for Extracting Information from Financial Text" in Contemporary Accounting Research. Their study showed that FinBERT, trained on 4.9 billion words of financial text, outperforms general-purpose language models when processing financial texts, particularly for sentiment analysis of earnings reports and financial news. The authors found that financial vocabulary differs substantially from general text, necessitating specialised models.
+
+This research supports the project’s objective to incorporate natural language analysis of financial news and headlines. FinBERT and other such similar models will be important in the sentiment analysis component. 
+
+3.	LSTM Neural Networks for Stock Price Prediction
+Long Short-Term Memory (LSTM) neural networks have been extensively studied for stock market prediction due to their ability to capture long-term dependencies in sequential data. Research demonstrates that LSTM models outperform traditional statistical methods like ARIMA for financial time-series forecasting, particularly for non-linear pattern recognition. LSTM's architectural design, featuring internal gating mechanisms (forget, input, and output gates), allows it to regulate information flow and maintain relevant data over extended sequences.
+
+Academic studies have shown LSTM models achieving lower error metrics (MAE, MSE, RMSE) compared to ARIMA when predicting stock prices, with particularly strong performance for medium to long-term forecasting horizons. However, nuanced findings exist: some studies found that while LSTM models show lower absolute error values, ARIMA can produce proportionally more accurate forecasts in specific market conditions, highlighting the importance of model selection based on context.
+
+The sources for LSTM also identifies that it comes with its own set of challenges including overfitting risks, long training times, sensitivity to hyperparameter selection, and difficulty capturing short-term price movements. These will be some points that we should address and take into considerations when implementing out model.
+
+4.	Ensemble Methods: Random Forest and XGBoost
+Ensemble learning methods, particularly Random Forest and XGBoost, have demonstrated strong performance in stock market prediction tasks. Research published through Atlantis Press and IEEE conferences has compared these algorithms systematically, finding that:
+
+- Random Forest exhibits stable performance across different market conditions and is less sensitive to hyperparameter selection, with studies showing accuracy stabilising around 98% for prediction horizons greater than 60 days
+- XGBoost achieves higher accuracy with proper optimisation but requires more careful tuning and is more sensitive to the scale of input variables
+- Both methods outperform simple regression models and individual decision trees for classification tasks (predicting price direction)
+- Random Forest shows particular strength in handling high-dimensional feature spaces with limited overfitting, and is often preferred when model interpretability is important
+
+Studies have reported prediction accuracies ranging from 80-99% for trend classification tasks, with some studies showing XGBoost achieving near-perfect accuracy on specific datasets. However, real-world performance varies significantly based on market conditions, prediction horizons, as well as the degree of hyperparameter optimization applied. 
+
+5.	Limitation 1: Efficient-Market Hypothesis.
+The efficient-market hypothesis is a hypothesis which states that asset prices reflect all available information. Which directly implies that is impossible to “beat the market” or make a positive prediction. A thought experiment in the Wikipedia article sums this up perfectly: “Suppose that a piece of information about the value of a stock (say, about a future merger) is widely available to investors. If the price of the stock does not already reflect that information, then investors can trade on it, thereby moving the price until the information is no longer useful for trading.” This statement implies that all patterns “identified” by the models may already be priced into the market, effectively making a future prediction impossible.
+
+While more up to date research suggests that AI can indeed identify short-term market inefficiencies and exploit such patterns to make a quick profit, these are only more effective through high-frequency trading strategies, which are not stocks. This should help us to inform and ground or expectations for the advisor.
+
+6.	Limitation 2: Overfitting and model reliability.
+A common challenge that most Machine Learning based financial prediction face is overfitting. This is when models learn noise and specific patterns in training data rather than being able to truly dynamically analyze market dynamics. This leads to models being able to perform exceptionally well on historical data, but perform poorly on unseen data. Based on the literature, several causes are: excessive model complexity, incomplete or insufficient training data, overtraining, improper feature selection. Some of the mitigation strategies presented are things like: cross-validation, regularization, validation on testing sets. The project will incorporate these learnings into the training and testing methodology of the machine learning models.
+
+7.	Limitation 3: Regulatory and Ethical Considerations
+Most financial products are required to meet ethical and financial regulatory standards as defined by their respective countries financial institutions. Some of the key considerations include.
+-	Fiduciary Duty: Automated systems are required to meet certain standards and to act in the best interests of their clients
+-	Transparency: Most algorithms and machine learning models are “black-boxes” meaning that most if not all of the decisions made by the models cannot be explicitly explained. It is also difficult to consistently replicate the same results even if the input remains completely same.
+-	Algorithmic bias: This bias can come from the bias in historical data used in training the models. The bias can also come from how the model is trained since humans can also perpetuate some of the biases that they have in real life.
+-	Data privacy: Since this platform requires users to submit some type of data, the privacy and encryption of their data would be important. 
+
+This literature review examines some of the key theories and foundational methodology that can be used in our project, it also highlights some of the key considerations and constraints that should be taken into account to inform the decisions. 
+
+CHAPTER 3:	PROJECT DESIGN
+1.	Domain and target users
+This project focuses on the stock market domain, specifically targeting S&P 500 
+constituent stocks. The S&P 500 was selected for several strategic reasons:
+1.	Data Reliability: S&P 500 companies are extensively covered by financial data  providers, ensuring consistent and reliable historical data availability through free APIs such as yfinance.
+2.	Liquidity and Market Efficiency: These stocks represent highly liquid markets    with substantial trading volumes, making them more suitable for pattern recognition and trend analysis.
+3.	Manageable Scope: Limiting the stock universe to 500 tickers provides sufficient variety for meaningful analysis while remaining computationally effective within the timeframe of the project
+4.	Documentation: As a widely-studied stock, they have extensive coverage and news preference, which allows us to conduct sentiment analysis
+The project scope excludes real-time trading, cryptocurrency, and forex markets, which requires other types of data sources, different types of analytical approaches, and regulatory considerations
+
+2.	Target Users:
+-	Retail investors looking for financial advice that is driven by data without using expensive professional tools or some type of subscription to a service.
+-	Investors that are unable to afford expensive advisory services or are uncomfortable with disclosing their financial situation to others.
+-	Other users who want to explore these types of applications
+
+3.	User needs and Preferences:
+-	Accessibility: Many financial tools require expensive subscriptions or specialized knowledge to operate.  This project hopefully is able to run or provide advice to people for free. Users should also not need python knowledge. The user interface should be able to hide the complexity of the system behind a user interface. 
+-	Transparency: Users receive predictions with confidence and indicators with clear disclaimers. They will be able to see the different models as well as different news sources that go into the analysis report. This helps the user to be able to confirm sources and to view it for themselves before making a financial investment decision.
+-	Integration: Rather than requiring users to consult multiple difference sources for price data, indicators, and news sentiments, we aim to integrate all these elements into a single cohesive application or analysis report. The system is also designed to pre-load heavy computation so that the user-interface feels snappy and responsive.
+
+4.	System Architecture.
+This system architecture is just a working concept and not a final version, there may be other revisions or alterations to the tech stack as development goes on.
+The system employs a “batch processing” architecture rather than a real-time, on-demand computational model. This decision was made because running machine learning models on demand every time a user request is made will take a long time for users. In addition, things like sentiment analysis on news headlines can be done once a day in a batch instead of having to run the same analysis on the same headlines over and over again.
+
+5.	Architecture Diagram and justifications
+Below is a diagram of how the architecture will be designed.
+ 
+-	Presentation layer: This is the layer that the users will interface with. Streamlit was chosen as the web framework because it can be developed with Python and eliminates the need for another separate front-end language or framework. Plotly and mplfinance will be some of the libraries that will be used to display the graphs of the current data as well as the predictions. The presentation layer is completely separate from the other layers to ensure separation of concerns.
+-	Storage layer: The main database that is chosen for this project is SQLite. This database is chosen since it is lightweight, self-contained, and requires little setup. This database does run into serious issues if concurrent access is needed but since this is a single stand-alone single user application it should be fine. This layer also contains storage of the models that are trained and fine-tuned.
+-	Data & Inference Pipeline: This is the layer that is responsible for processing most of the day to day data. It contains the python scripts that will read the daily financial headlines and news. Ingest the daily movements of the stock market and run the machine learning models on it. This separation from other layers ensure that modifications to the models or scripts will not affect other critical system components.
+
+6.	Core Technologies 
+Category	Technology	Justification
+Language	Python 3.9	Vast ecosystem for finance and machine learning as well as data analysis 
+Web app	Streamlit	Ideal for data apps, python application, components for charts and forms, eliminates javascript dependencies
+Database	SQlite	Zero configuration, sufficient for local single user application
+ML Models	Tensorflow
+Scikit-learn
+Keras	Libraries that meet industry standard for machine learning, extensive documentation, model saving and loading capabilities
+NLP Model	FinBERT (hugging face)	Pretrained NLP model on financial text
+Used for sentiment analysis
+Visualization	Plotly
+mplfinance	Interactive candlestick plots and charts, built in support with/for streamlit
+
+7.	Project Timeline
+ 
+Above is gantt chart showing the projected timeline and phases of the project.
+
+CHAPTER 4:	FEATURE PROTOTYPE
+<This is a new element of the submission, details below (max 3 pages). The feature prototype should be an implementation of at least one of the most important technical features used in the project to show that it is feasible. 
+
+It should work as designed, but it is OK at this stage if developing the prototype shows that the feature is not as effective as expected.
+
+Students should describe the prototype in the final chapter of the PPR, together with an evaluation of how well you think the prototype works and how you would improve it. Students should also submit a 3-minute video demonstrating it.>
+
+
+
+
+
+
+
+
