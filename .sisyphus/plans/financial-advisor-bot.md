@@ -587,7 +587,7 @@ print(f'Query time: {end-start:.3f}s, Rows: {len(result)}')
 
 ---
 
-- [ ] 7. Technical Indicators Calculation Pipeline
+- [x] 7. Technical Indicators Calculation Pipeline
 
   **What to do**:
   - Create `src/features/indicators.py` - technical indicators calculation module
