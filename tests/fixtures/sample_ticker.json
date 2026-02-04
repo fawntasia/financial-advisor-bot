@@ -1,0 +1,9 @@
+{
+  "ticker": "AAPL",
+  "name": "Apple Inc.",
+  "sector": "Technology",
+  "industry": "Consumer Electronics",
+  "market_cap": 3000000000000,
+  "exchange": "NASDAQ",
+  "currency": "USD"
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "headline": "Apple Reports Record Q4 Earnings",
+    "source": "Reuters",
+    "date": "2024-01-05",
+    "sentiment": "positive",
+    "url": "https://example.com/news/1"
+  },
+  {
+    "headline": "New iPhone Sales Exceed Expectations",
+    "source": "Bloomberg",
+    "date": "2024-01-04",
+    "sentiment": "positive",
+    "url": "https://example.com/news/2"
+  },
+  {
+    "headline": "Market Volatility Impacts Tech Stocks",
+    "source": "CNBC",
+    "date": "2024-01-03",
+    "sentiment": "negative",
+    "url": "https://example.com/news/3"
+  }
+]
