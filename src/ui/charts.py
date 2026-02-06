@@ -1,7 +1,6 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
-import numpy as np
 
 class ChartGenerator:
     """Generator for interactive financial charts using Plotly."""
@@ -112,4 +111,84 @@ class ChartGenerator:
             yaxis=dict(range=[-1.1, 1.1])
         )
         
+        return fig
+
+    def create_lstm_prediction_chart(
+        self,
+        history_df: pd.DataFrame,
+        backtest_df: pd.DataFrame,
+        forecast_df: pd.DataFrame,
+        ticker: str,
+    ) -> go.Figure:
+        """
+        Create a combined chart for historical closes, recent model-fit, and forward forecast.
+
+        Expected columns:
+        - history_df: ['Close'] indexed by date
+        - backtest_df: ['Actual_Close', 'Predicted_Close'] indexed by date
+        - forecast_df: ['Predicted_Close'] indexed by date
+        """
+        fig = go.Figure()
+
+        if not history_df.empty and "Close" in history_df.columns:
+            fig.add_trace(
+                go.Scatter(
+                    x=history_df.index,
+                    y=history_df["Close"],
+                    mode="lines",
+                    name="Historical Close",
+                    line=dict(color="#4facfe", width=2),
+                )
+            )
+
+        if not backtest_df.empty and {"Actual_Close", "Predicted_Close"}.issubset(backtest_df.columns):
+            fig.add_trace(
+                go.Scatter(
+                    x=backtest_df.index,
+                    y=backtest_df["Actual_Close"],
+                    mode="lines",
+                    name="Actual (Eval Window)",
+                    line=dict(color="rgba(0, 242, 254, 0.4)", width=1.5),
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=backtest_df.index,
+                    y=backtest_df["Predicted_Close"],
+                    mode="lines",
+                    name="Predicted (Eval Window)",
+                    line=dict(color="#f5a524", width=2, dash="dash"),
+                )
+            )
+
+        if not forecast_df.empty and "Predicted_Close" in forecast_df.columns:
+            fig.add_trace(
+                go.Scatter(
+                    x=forecast_df.index,
+                    y=forecast_df["Predicted_Close"],
+                    mode="lines+markers",
+                    name="Forward Forecast",
+                    line=dict(color="#f093fb", width=2, dash="dot"),
+                    marker=dict(size=6),
+                )
+            )
+
+        if not history_df.empty and not forecast_df.empty:
+            fig.add_vline(
+                x=history_df.index[-1],  # type: ignore[arg-type]
+                line_dash="dash",
+                line_color="gray",
+                opacity=0.7,
+            )
+
+        fig.update_layout(
+            template=self.theme,
+            title=f"LSTM Price Visualization: {ticker}",
+            xaxis_title="Date",
+            yaxis_title="Price (USD)",
+            height=550,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            margin=dict(l=50, r=40, t=80, b=50),
+        )
+
         return fig

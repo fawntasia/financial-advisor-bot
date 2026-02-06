@@ -1,6 +1,7 @@
 import streamlit as st
 import sys
 import os
+import re
 
 # Ensure src is in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
@@ -131,12 +132,13 @@ def main():
         new_ticker = ticker_input.upper() if ticker_input else ""
         
         if new_ticker and new_ticker != st.session_state.ticker:
-            # Basic validation: most tickers are 1-5 alphabetic characters
-            if new_ticker.isalpha() and 1 <= len(new_ticker) <= 5:
+            # Support standard symbols and class-share tickers like BRK.B
+            ticker_pattern = r"^[A-Z]{1,5}([.-][A-Z]{1,2})?$"
+            if re.fullmatch(ticker_pattern, new_ticker):
                 st.session_state.ticker = new_ticker
                 st.toast(f"Ticker updated to: {new_ticker}")
             else:
-                st.error(f"Invalid ticker format: {new_ticker}. Please use 1-5 letters.")
+                st.error(f"Invalid ticker format: {new_ticker}. Example valid symbols: AAPL, MSFT, BRK.B")
             
         st.markdown("---")
         

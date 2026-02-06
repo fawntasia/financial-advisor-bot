@@ -70,3 +70,32 @@ def test_create_sentiment_chart_axes_and_trace():
     assert fig.layout.yaxis.title.text == "Sentiment Score (-1 to 1)"
     assert tuple(fig.layout.yaxis.range) == (-1.1, 1.1)
     assert [trace.name for trace in fig.data] == ["Sentiment"]
+
+
+def test_create_lstm_prediction_chart_includes_expected_traces():
+    generator = ChartGenerator(theme="plotly")
+    dates = pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"])
+
+    history_df = pd.DataFrame({"Close": [100.0, 101.0, 102.0]}, index=dates)
+    backtest_df = pd.DataFrame(
+        {
+            "Actual_Close": [100.5, 101.2],
+            "Predicted_Close": [100.7, 101.0],
+        },
+        index=pd.to_datetime(["2024-01-02", "2024-01-03"]),
+    )
+    forecast_df = pd.DataFrame(
+        {"Predicted_Close": [102.5, 103.0]},
+        index=pd.to_datetime(["2024-01-04", "2024-01-05"]),
+    )
+
+    fig = generator.create_lstm_prediction_chart(history_df, backtest_df, forecast_df, "AAPL")
+
+    assert isinstance(fig, go.Figure)
+    assert fig.layout.title.text == "LSTM Price Visualization: AAPL"
+    assert [trace.name for trace in fig.data] == [
+        "Historical Close",
+        "Actual (Eval Window)",
+        "Predicted (Eval Window)",
+        "Forward Forecast",
+    ]

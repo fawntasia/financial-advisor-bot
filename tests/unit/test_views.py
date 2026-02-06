@@ -2,6 +2,8 @@ import importlib
 import sys
 import types
 
+import pandas as pd
+
 sys.path.insert(0, ".")
 
 
@@ -90,11 +92,14 @@ class FakeStreamlit(types.SimpleNamespace):
     def info(self, text):
         self.calls.append(("info", text))
 
+    def warning(self, text):
+        self.calls.append(("warning", text))
+
     def subheader(self, text, help=None):
         self.calls.append(("subheader", text, help))
 
-    def image(self, url, use_container_width=False):
-        self.calls.append(("image", url, use_container_width))
+    def plotly_chart(self, fig, use_container_width=False):
+        self.calls.append(("plotly_chart", fig, use_container_width))
 
     def spinner(self, label):
         self.calls.append(("spinner", label))
@@ -125,33 +130,119 @@ def _load_views(fake_streamlit):
     return importlib.import_module("src.ui.views")
 
 
-def test_show_stock_analysis_uses_default_ticker():
+def _mock_viz_data():
+    dates = pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"])
+    return {
+        "history_df": pd.DataFrame({"Close": [100.0, 101.0, 102.0]}, index=dates),
+        "technical_df": pd.DataFrame(
+            {
+                "Open": [99.0, 100.0, 101.0],
+                "High": [101.0, 102.0, 103.0],
+                "Low": [98.5, 99.5, 100.5],
+                "Close": [100.0, 101.0, 102.0],
+                "Volume": [1000, 1200, 1300],
+                "RSI": [50.0, 52.0, 54.0],
+                "MACD": [0.1, 0.12, 0.15],
+                "MACD_Signal": [0.08, 0.1, 0.11],
+                "MACD_Hist": [0.02, 0.02, 0.04],
+                "BB_Upper": [103.0, 104.0, 105.0],
+                "BB_Lower": [97.0, 98.0, 99.0],
+                "BB_Middle": [100.0, 101.0, 102.0],
+                "Signal_Line": [0.08, 0.1, 0.11],
+            },
+            index=dates,
+        ),
+        "backtest_df": pd.DataFrame(
+            {"Actual_Close": [101.0, 102.0], "Predicted_Close": [100.8, 101.7]},
+            index=pd.to_datetime(["2024-01-02", "2024-01-03"]),
+        ),
+        "forecast_df": pd.DataFrame(
+            {"Predicted_Close": [102.5, 103.1]},
+            index=pd.to_datetime(["2024-01-04", "2024-01-05"]),
+        ),
+        "last_close": 102.0,
+        "next_predicted_close": 102.5,
+        "rmse": 1.23,
+        "mape": 2.34,
+        "sequence_length": 60,
+        "feature_columns": ["Close", "SMA_20", "SMA_50", "RSI", "MACD", "Signal_Line"],
+        "scaler_ticker": "AAPL",
+        "artifact_paths": {"model_path": "models/lstm_test.keras", "scaler_path": "", "metadata_path": ""},
+    }
+
+
+def test_show_stock_analysis_uses_default_ticker(monkeypatch):
     fake_st = FakeStreamlit()
     views = _load_views(fake_st)
 
+    captured = {}
+
+    def fake_generate(**kwargs):
+        captured.update(kwargs)
+        return _mock_viz_data()
+
+    class DummyChartGenerator:
+        def create_ohlcv_chart(self, df, ticker):
+            return "technical_fig"
+
+        def create_lstm_prediction_chart(self, history_df, backtest_df, forecast_df, ticker):
+            return "forecast_fig"
+
+    monkeypatch.setattr(views, "generate_lstm_visualization_data", fake_generate)
+    monkeypatch.setattr(views, "ChartGenerator", lambda: DummyChartGenerator())
+
     views.show_stock_analysis()
 
-    assert any(
-        call[0] == "header" and "Stock Analysis" in call[1]
-        for call in fake_st.calls
-    )
-    assert ("spinner", "Fetching data for AAPL...") in fake_st.calls
-    assert ("subheader", "Technical Overview", "A visual representation of stock price movements and technical indicators.") in fake_st.calls
-    assert ("image", "https://via.placeholder.com/800x400.png?text=Stock+Chart+Placeholder", True) in fake_st.calls
+    assert any(call[0] == "header" and "Stock Analysis" in call[1] for call in fake_st.calls)
+    assert ("spinner", "Fetching data and model output for AAPL...") in fake_st.calls
+    assert captured["ticker"] == "AAPL"
+    assert ("plotly_chart", "technical_fig", True) in fake_st.calls
+    assert ("plotly_chart", "forecast_fig", True) in fake_st.calls
 
 
-def test_show_stock_analysis_uses_session_ticker():
+def test_show_stock_analysis_uses_session_ticker(monkeypatch):
     fake_st = FakeStreamlit()
     fake_st.session_state["ticker"] = "MSFT"
     views = _load_views(fake_st)
 
+    captured = {}
+
+    def fake_generate(**kwargs):
+        captured.update(kwargs)
+        data = _mock_viz_data()
+        data["scaler_ticker"] = "AAPL"
+        return data
+
+    class DummyChartGenerator:
+        def create_ohlcv_chart(self, df, ticker):
+            return "technical_fig"
+
+        def create_lstm_prediction_chart(self, history_df, backtest_df, forecast_df, ticker):
+            return "forecast_fig"
+
+    monkeypatch.setattr(views, "generate_lstm_visualization_data", fake_generate)
+    monkeypatch.setattr(views, "ChartGenerator", lambda: DummyChartGenerator())
+
     views.show_stock_analysis()
 
-    assert ("spinner", "Fetching data for MSFT...") in fake_st.calls
-    assert any(
-        call[0] == "write" and "MSFT" in call[1]
-        for call in fake_st.calls
-    )
+    assert captured["ticker"] == "MSFT"
+    assert any(call[0] == "write" and "MSFT" in call[1] for call in fake_st.calls)
+    assert any(call[0] == "warning" and "fallback" in call[1] for call in fake_st.calls)
+
+
+def test_show_stock_analysis_handles_generation_error(monkeypatch):
+    fake_st = FakeStreamlit()
+    views = _load_views(fake_st)
+
+    def fake_generate(**kwargs):
+        raise ValueError("missing artifacts")
+
+    monkeypatch.setattr(views, "generate_lstm_visualization_data", fake_generate)
+
+    views.show_stock_analysis()
+
+    assert any(call[0] == "error" and "Unable to load analysis" in call[1] for call in fake_st.calls)
+    assert any(call[0] == "info" and "LSTM artifacts" in call[1] for call in fake_st.calls)
 
 
 def test_show_chat_interface_with_manager():
@@ -186,10 +277,7 @@ def test_show_dashboard_updates_status_and_metrics():
 
     views.show_dashboard()
 
-    assert any(
-        call[0] == "header" and "Market Dashboard" in call[1]
-        for call in fake_st.calls
-    )
+    assert any(call[0] == "header" and "Market Dashboard" in call[1] for call in fake_st.calls)
     assert ("status", "Loading market data...", True) in fake_st.calls
     assert ("status.update", {"label": "Market Data Loaded", "state": "complete", "expanded": False}) in fake_st.calls
     assert ("columns", 3) in fake_st.calls
@@ -204,7 +292,4 @@ def test_show_disclaimer_renders_text():
     views.show_disclaimer()
 
     assert ("markdown", "---") in fake_st.calls
-    assert any(
-        call[0] == "caption" and "Mandatory Financial Disclaimer" in call[1]
-        for call in fake_st.calls
-    )
+    assert any(call[0] == "caption" and "Mandatory Financial Disclaimer" in call[1] for call in fake_st.calls)
