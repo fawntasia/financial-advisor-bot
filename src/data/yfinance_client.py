@@ -18,14 +18,27 @@ logger = logging.getLogger(__name__)
 # Cache directory
 CACHE_DIR = Path("data/cache/yfinance")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+TZ_CACHE_DIR = Path("data/cache/yfinance_tz")
+TZ_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class YFinanceClient:
     """Client for fetching stock data from yfinance with caching and retry logic."""
     
     def __init__(self, rate_limit_delay=0.5):
+        """
+        Initialize the client with a rate limit delay.
+
+        Args:
+            rate_limit_delay: Minimum seconds between requests.
+        """
         self.rate_limit_delay = rate_limit_delay
         self.last_request_time = 0
+        # yfinance writes a SQLite timezone cache; pin it to a writable workspace path.
+        try:
+            yf.set_tz_cache_location(str(TZ_CACHE_DIR))
+        except Exception as e:
+            logger.warning(f"Could not set yfinance timezone cache location: {e}")
         
     def _rate_limit(self):
         """Enforce rate limiting between requests."""
@@ -80,7 +93,9 @@ class YFinanceClient:
         """Fetch data from yfinance with retry logic."""
         self._rate_limit()
         
-        stock = yf.Ticker(ticker)
+        # yfinance uses '-' instead of '.' (e.g. BRK-B vs BRK.B)
+        yf_ticker = ticker.replace('.', '-')
+        stock = yf.Ticker(yf_ticker)
         
         if start and end:
             df = stock.history(start=start, end=end)
