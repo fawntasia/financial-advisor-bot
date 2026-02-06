@@ -1,123 +1,97 @@
 """
-Unit tests for LSTMStockPredictor wrapper.
+Unit tests for LSTMStockPredictor compatibility wrapper.
 """
+
+import importlib
 import sys
-import math
+import types
+
+import pytest
 
 sys.path.insert(0, ".")
 
-import numpy as np
-import pytest
-import torch
-import torch.nn as nn
 
-from src.models import lstm_wrapper
+class DummySequential:
+    def __init__(self, layers):
+        self.layers = list(layers)
 
-
-class DummyTensorDataset:
-    def __init__(self, X_tensor, y_tensor):
-        self.X_tensor = X_tensor
-        self.y_tensor = y_tensor
-
-    def __len__(self):
-        return len(self.X_tensor)
-
-    def __getitem__(self, idx):
-        return self.X_tensor[idx], self.y_tensor[idx]
-
-
-class DummyDataLoader:
-    def __init__(self, dataset, batch_size=32, shuffle=False):
-        self.dataset = dataset
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-
-    def __iter__(self):
-        for start in range(0, len(self.dataset), self.batch_size):
-            end = start + self.batch_size
-            yield (
-                self.dataset.X_tensor[start:end],
-                self.dataset.y_tensor[start:end],
-            )
-
-    def __len__(self):
-        return math.ceil(len(self.dataset) / self.batch_size)
-
-
-class DummyTorchModel(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, dropout):
-        super().__init__()
-        self.input_size = input_size
-        self.linear = nn.Linear(input_size, 1)
-        self.train_calls = 0
-        self.eval_calls = 0
-
-    def forward(self, x):
-        last_step = x[:, -1, :]
-        return self.linear(last_step)
-
-    def train(self, mode=True):
-        self.train_calls += 1
-        return super().train(mode)
-
-    def eval(self):
-        self.eval_calls += 1
-        return super().eval()
+    def compile(self, optimizer=None, loss=None):
+        self.optimizer = optimizer
+        self.loss = loss
 
 
 class DummyAdam:
-    def __init__(self, params, lr=0.001):
-        self.params = list(params)
-        self.lr = lr
-        self.zero_grad_calls = 0
-        self.step_calls = 0
-
-    def zero_grad(self):
-        self.zero_grad_calls += 1
-
-    def step(self):
-        self.step_calls += 1
+    def __init__(self, learning_rate=0.001):
+        self.learning_rate = learning_rate
 
 
-def configure_wrapper_mocks(monkeypatch):
-    monkeypatch.setattr(lstm_wrapper, "PyTorchLSTM", DummyTorchModel)
-    monkeypatch.setattr(lstm_wrapper, "TensorDataset", DummyTensorDataset)
-    monkeypatch.setattr(lstm_wrapper, "DataLoader", DummyDataLoader)
-    monkeypatch.setattr(lstm_wrapper.torch.optim, "Adam", DummyAdam)
+def dummy_load_model(path):
+    return DummySequential([])
+
+
+def DummyInput(shape=None):
+    return {"type": "Input", "shape": shape}
+
+
+def DummyLSTM(units, return_sequences=False):
+    return {"type": "LSTM", "units": units, "return_sequences": return_sequences}
+
+
+def DummyDense(units):
+    return {"type": "Dense", "units": units}
+
+
+def import_lstm_wrapper(monkeypatch):
+    tf_module = types.ModuleType("tensorflow")
+    keras_module = types.ModuleType("tensorflow.keras")
+    models_module = types.ModuleType("tensorflow.keras.models")
+    layers_module = types.ModuleType("tensorflow.keras.layers")
+    callbacks_module = types.ModuleType("tensorflow.keras.callbacks")
+    optimizers_module = types.ModuleType("tensorflow.keras.optimizers")
+
+    models_module.Sequential = DummySequential
+    models_module.load_model = dummy_load_model
+    layers_module.LSTM = DummyLSTM
+    layers_module.Dense = DummyDense
+    layers_module.Input = DummyInput
+    callbacks_module.EarlyStopping = object
+    callbacks_module.ModelCheckpoint = object
+    optimizers_module.Adam = DummyAdam
+
+    keras_module.models = models_module
+    keras_module.layers = layers_module
+    keras_module.callbacks = callbacks_module
+    keras_module.optimizers = optimizers_module
+    tf_module.keras = keras_module
+
+    monkeypatch.setitem(sys.modules, "tensorflow", tf_module)
+    monkeypatch.setitem(sys.modules, "tensorflow.keras", keras_module)
+    monkeypatch.setitem(sys.modules, "tensorflow.keras.models", models_module)
+    monkeypatch.setitem(sys.modules, "tensorflow.keras.layers", layers_module)
+    monkeypatch.setitem(sys.modules, "tensorflow.keras.callbacks", callbacks_module)
+    monkeypatch.setitem(sys.modules, "tensorflow.keras.optimizers", optimizers_module)
+
+    for module_name in ["src.models.lstm_model", "src.models.lstm_wrapper"]:
+        if module_name in sys.modules:
+            del sys.modules[module_name]
+
+    return importlib.import_module("src.models.lstm_wrapper")
 
 
 @pytest.mark.unit
-def test_train_updates_input_size_and_records_history(monkeypatch):
-    configure_wrapper_mocks(monkeypatch)
-    model = lstm_wrapper.LSTMStockPredictor(input_size=2, hidden_size=4, num_layers=1)
+def test_wrapper_maps_input_size_to_n_features(monkeypatch):
+    lstm_wrapper = import_lstm_wrapper(monkeypatch)
+    model = lstm_wrapper.LSTMStockPredictor(input_size=7, sequence_length=30, learning_rate=0.005)
 
-    X_train = np.zeros((4, 3, 3), dtype=np.float32)
-    y_train = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
-    X_test = np.zeros((2, 3, 3), dtype=np.float32)
-    y_test = np.array([1.0, 2.0], dtype=np.float32)
-
-    history = model.train(X_train, y_train, X_test, y_test, epochs=1, batch_size=2)
-
-    assert model.input_size == 3
-    assert isinstance(model.model, DummyTorchModel)
-    assert history["loss"] and history["val_loss"]
-    assert len(history["loss"]) == 1
-    assert len(history["val_loss"]) == 1
-    assert model.model.train_calls >= 1
-    assert model.model.eval_calls >= 1
+    assert model.n_features == 7
+    assert model.sequence_length == 30
+    assert model.learning_rate == 0.005
 
 
 @pytest.mark.unit
-def test_predict_returns_numpy_array(monkeypatch):
-    configure_wrapper_mocks(monkeypatch)
-    model = lstm_wrapper.LSTMStockPredictor(input_size=2, hidden_size=4, num_layers=1)
+def test_wrapper_uses_single_keras_lstm_implementation(monkeypatch):
+    lstm_wrapper = import_lstm_wrapper(monkeypatch)
+    lstm_model = importlib.import_module("src.models.lstm_model")
 
-    with torch.no_grad():
-        model.model.linear.weight.fill_(0.0)
-        model.model.linear.bias.fill_(0.0)
-
-    X_data = np.ones((2, 3, 2), dtype=np.float32)
-    predictions = model.predict(X_data)
-
-    assert predictions.shape == (2, 1)
-    assert np.allclose(predictions, 0.0)
+    model = lstm_wrapper.LSTMStockPredictor()
+    assert isinstance(model, lstm_model.LSTMModel)
