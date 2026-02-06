@@ -151,8 +151,36 @@ class DataAccessLayer:
                 (ticker, limit)
             )
             return [dict(row) for row in cursor.fetchall()]
-    
+
+    def get_unprocessed_news(self, limit: int = 1000) -> List[Dict]:
+        """Get news headlines that don't have sentiment scores yet."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT h.* FROM news_headlines h
+                   LEFT JOIN sentiment_scores s ON h.id = s.news_id
+                   WHERE s.id IS NULL
+                   ORDER BY h.published_at DESC
+                   LIMIT ?""",
+                (limit,)
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_news_for_date(self, date: str) -> List[Dict]:
+        """Get news headlines for a specific date (YYYY-MM-DD)."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT h.*, s.positive_score, s.negative_score, s.neutral_score, s.sentiment_label, s.confidence
+                   FROM news_headlines h
+                   JOIN sentiment_scores s ON h.id = s.news_id
+                   WHERE date(h.published_at) = ?""",
+                (date,)
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
     # ==================== Sentiment Scores ====================
+
     
     def insert_sentiment_score(self, news_id: int, positive_score: float,
                                negative_score: float, neutral_score: float,

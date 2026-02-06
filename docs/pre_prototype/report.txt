@@ -1,4 +1,4 @@
- CHAPTER 1:	 INTRODUCTION
+﻿ CHAPTER 1:	 INTRODUCTION
 This project aims to develop an intelligent financial advisor bot capable of analyzing historical and real-world financial data to generate personalized investment recommendations for users. The system will leverage machine learning models and large language models to identify market patterns, evaluate risks, and propose investment strategies tailored to user preferences. 
 
 The main motivation for this project stems from the growing complexity of financial markets as well as the demand for accessible, data-driven investment guidance. Traditional financial advisory services are often expensive, or inaccessible to everyday investors. By combining machine learning and natural language processing, this project seeks to make personalized financial investing advice available to everyone.

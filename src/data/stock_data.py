@@ -1,7 +1,4 @@
-"""
-Stock Data Processor Module
-Centralized handling for fetching and preprocessing stock data for various models.
-"""
+"""Stock data fetching and preprocessing utilities."""
 
 import yfinance as yf
 import numpy as np
@@ -11,18 +8,17 @@ from sklearn.preprocessing import MinMaxScaler
 from datetime import datetime, timedelta
 
 class StockDataProcessor:
-    """
-    Handles data fetching, feature engineering, and formatting for different model types.
-    """
+    """Fetch, enrich, and format stock data for model inputs."""
     
     def __init__(self, ticker: str = "AAPL"):
+        """Initialize the processor with a ticker symbol."""
         self.ticker = ticker
         self.data: Optional[pd.DataFrame] = None
         self.scaler = MinMaxScaler(feature_range=(0, 1))
         self.target_scaler = MinMaxScaler(feature_range=(0, 1)) # Scaler just for the target value
         
     def fetch_data(self, years: int = 5) -> pd.DataFrame:
-        """Fetch historical stock data using yfinance."""
+        """Fetch historical stock data for the configured ticker."""
         end_date = datetime.now()
         start_date = end_date - timedelta(days=years * 365)
         
@@ -36,7 +32,7 @@ class StockDataProcessor:
         return df
 
     def add_technical_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Add Technical Indicators (SMA, RSI, MACD) to the dataframe."""
+        """Add SMA, RSI, and MACD features to a copy of the data."""
         df = df.copy()
         
         # Simple Moving Average (SMA)
@@ -63,10 +59,7 @@ class StockDataProcessor:
         return df
 
     def prepare_for_lstm(self, df: pd.DataFrame, sequence_length: int = 60, target_col: str = 'Close'):
-        """
-        Prepare data specifically for LSTM input (3D array) with Multiple Features.
-        Returns: X_train, y_train, X_test, y_test, scaler, df
-        """
+        """Prepare sequences for LSTM training and return scaled splits."""
         # Enrichment step
         data = self.add_technical_indicators(df)
         
@@ -92,6 +85,7 @@ class StockDataProcessor:
         
         # Helper to create sequences
         def create_sequences(dataset):
+            """Create sliding window sequences for features and target."""
             X, y = [], []
             target_idx = feature_cols.index(target_col)
             for i in range(sequence_length, len(dataset)):
@@ -112,7 +106,7 @@ class StockDataProcessor:
         return X_train, y_train, X_test, y_test, self.target_scaler, data
 
     def get_latest_sequence(self, df: pd.DataFrame, sequence_length: int = 60, target_col: str = 'Close'):
-        """Get the latest sequence for prediction with all features."""
+        """Return the most recent scaled feature window for inference."""
         # Ensure indicators exist
         if 'RSI' not in df.columns:
             df = self.add_technical_indicators(df)
@@ -124,11 +118,7 @@ class StockDataProcessor:
         return np.reshape(scaled, (1, sequence_length, len(feature_cols)))
 
     def prepare_for_classification(self, df: pd.DataFrame, target_col: str = 'Close'):
-        """
-        Prepare data for classification (Random Forest).
-        Target: 1 if Next Close > Current Close, else 0.
-        Returns: X_train, y_train, X_test, y_test, feature_cols
-        """
+        """Prepare features/labels for a next-day direction classifier."""
         df = df.copy()
         
         # Enrichment
@@ -159,14 +149,17 @@ class StockDataProcessor:
 
 # Helper functions for backward compatibility or simple usage
 def fetch_stock_data(ticker="AAPL", years=5):
+    """Fetch historical data for a ticker using the processor."""
     processor = StockDataProcessor(ticker)
     return processor.fetch_data(years)
 
 def prepare_data_for_lstm(df, sequence_length=60):
+    """Prepare LSTM-ready sequences with default processor settings."""
     processor = StockDataProcessor()
     return processor.prepare_for_lstm(df, sequence_length)
 
 def get_latest_sequence(df, scaler, sequence_length=60):
+    """Return the latest scaled window using the provided scaler."""
     # Note: This helper requires the passed scaler, ignoring the processor's internal one
     # to maintain compatibility with existing app logic that passes scaler around
     processor = StockDataProcessor()

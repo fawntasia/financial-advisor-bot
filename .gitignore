@@ -87,3 +87,9 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# Local agent/work artifacts
+.sisyphus/
+results/
+data/download_checkpoint.json
+C

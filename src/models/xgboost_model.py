@@ -45,6 +45,9 @@ class XGBoostModel(StockPredictor):
         Optionally performs hyperparameter tuning using RandomizedSearchCV.
         Uses early stopping on the test set for the final fit.
         """
+        # Reset early stopping rounds to avoid issues with search
+        self.model.set_params(early_stopping_rounds=None)
+        
         # Ensure no NaNs
         if np.isnan(X_train).any() or np.isnan(y_train).any():
             raise ValueError("Training data contains NaNs. Please clean data before training.")
@@ -84,16 +87,16 @@ class XGBoostModel(StockPredictor):
             self.model = XGBClassifier(
                 **best_params,
                 random_state=42,
-                eval_metric='logloss',
-                early_stopping_rounds=10 # Stop if no improvement for 10 rounds
+                eval_metric='logloss'
             )
             self.is_tuned = True
         else:
-             # Enable early stopping for the non-tuned model too
-             self.model.set_params(early_stopping_rounds=10)
+             # Ensure early stopping is NOT set here
+             self.model.set_params(early_stopping_rounds=None)
 
         # Train final model with early stopping using X_test as validation
         print("Training final model with early stopping...")
+        self.model.set_params(early_stopping_rounds=10)
         self.model.fit(
             X_train, y_train,
             eval_set=[(X_train, y_train), (X_test, y_test)],

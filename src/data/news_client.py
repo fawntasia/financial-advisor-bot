@@ -53,13 +53,14 @@ class NewsAPIClient(NewsProvider):
     BASE_URL = "https://newsapi.org/v2/everything"
     
     def __init__(self, api_key: Optional[str] = None):
+        """Initialize client with an explicit key or NEWSAPI_KEY env var."""
         self.api_key = api_key or os.getenv("NEWSAPI_KEY")
         if not self.api_key:
             logger.warning("NewsAPI key not found. News fetching will fail.")
             
     def fetch_news(self, query: str, start_date: Optional[str] = None, 
                    end_date: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
-        """Fetch news from NewsAPI."""
+        """Fetch news from NewsAPI for a query within an optional date range."""
         if not self.api_key:
             logger.error("Cannot fetch news: API key missing.")
             return []
@@ -119,13 +120,14 @@ class AlphaVantageNewsClient(NewsProvider):
     BASE_URL = "https://www.alphavantage.co/query"
     
     def __init__(self, api_key: Optional[str] = None):
+        """Initialize client with an explicit key or ALPHA_VANTAGE_KEY env var."""
         self.api_key = api_key or os.getenv("ALPHA_VANTAGE_KEY")
         if not self.api_key:
             logger.warning("Alpha Vantage key not found.")
 
     def fetch_news(self, query: str, start_date: Optional[str] = None, 
                    end_date: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
-        """Fetch news using Alpha Vantage Sentiment API."""
+        """Fetch news using Alpha Vantage Sentiment API for a ticker."""
         if not self.api_key:
             logger.error("Cannot fetch news: API key missing.")
             return []
@@ -185,8 +187,28 @@ class AlphaVantageNewsClient(NewsProvider):
             logger.error(f"Failed to fetch news for {query}: {e}")
             return []
 
+class MockNewsClient(NewsProvider):
+    """Mock news provider for testing."""
+    
+    def fetch_news(self, query: str, start_date: Optional[str] = None, 
+                   end_date: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+        """Return deterministic mock headlines for the requested limit."""
+        logger.info(f"Using MockNewsClient for {query}")
+        return [
+            {
+                "title": f"Mock News for {query} {i}",
+                "source": "Mock Finance",
+                "url": f"https://mock.finance/{query}/{i}",
+                "published_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "summary": f"This is a mock summary for {query} article {i}."
+            }
+            for i in range(limit)
+        ]
+
 def get_news_client(provider: str = "newsapi") -> NewsProvider:
-    """Factory function to get a news client."""
+    """Return a news client instance by provider name."""
     if provider.lower() == "alphavantage":
         return AlphaVantageNewsClient()
+    if provider.lower() == "mock":
+        return MockNewsClient()
     return NewsAPIClient()

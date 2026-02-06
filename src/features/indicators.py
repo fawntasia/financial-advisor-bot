@@ -1,17 +1,11 @@
+"""Technical indicator calculations and formatting helpers."""
+
 import pandas as pd
 import ta
 from typing import Dict, List, Any
 
 def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calculate technical indicators for a given stock dataframe.
-    
-    Args:
-        df: DataFrame with columns 'open', 'high', 'low', 'close', 'volume'
-        
-    Returns:
-        DataFrame with added technical indicators
-    """
+    """Add common technical indicators to the provided OHLCV dataframe."""
     if df.empty:
         return df
         
@@ -70,11 +64,7 @@ def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def prepare_indicators_for_db(df: pd.DataFrame) -> List[Dict[str, Any]]:
-    """
-    Convert dataframe with indicators to list of dicts for DB insertion.
-    Removes rows where critical identifiers might be missing (though unlikely).
-    Handles NaN values by converting them to None.
-    """
+    """Serialize indicator columns to DB-friendly records with None for NaNs."""
     records = []
     
     # Iterate over rows

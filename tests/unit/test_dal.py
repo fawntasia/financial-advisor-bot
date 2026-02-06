@@ -293,6 +293,35 @@ class TestDataAccessLayer:
         # DAL: ORDER BY published_at DESC
         assert news_items[0]["headline"] == "Another headline"
 
+    def test_get_unprocessed_news(self, dal):
+        """Test retrieving news without sentiment scores."""
+        dal.insert_ticker("AAPL", "Apple Inc.")
+        news_id1 = dal.insert_news_headline("AAPL", "Unprocessed", "Source", "url", "2023-01-01")
+        news_id2 = dal.insert_news_headline("AAPL", "Processed", "Source", "url", "2023-01-02")
+        
+        dal.insert_sentiment_score(news_id2, 0.5, 0.2, 0.3, "neutral", 0.9)
+        
+        unprocessed = dal.get_unprocessed_news()
+        assert len(unprocessed) == 1
+        assert unprocessed[0]["id"] == news_id1
+        assert unprocessed[0]["headline"] == "Unprocessed"
+
+    def test_get_news_for_date(self, dal):
+        """Test retrieving news with sentiment for a specific date."""
+        dal.insert_ticker("AAPL", "Apple Inc.")
+        news_id = dal.insert_news_headline("AAPL", "Daily News", "Source", "url", "2023-01-01 10:00:00")
+        dal.insert_sentiment_score(news_id, 0.8, 0.1, 0.1, "positive", 0.9)
+        
+        # Another day
+        news_id2 = dal.insert_news_headline("AAPL", "Other Day", "Source", "url", "2023-01-02 10:00:00")
+        dal.insert_sentiment_score(news_id2, 0.1, 0.8, 0.1, "negative", 0.9)
+        
+        results = dal.get_news_for_date("2023-01-01")
+        assert len(results) == 1
+        assert results[0]["headline"] == "Daily News"
+        assert results[0]["positive_score"] == 0.8
+        assert results[0]["sentiment_label"] == "positive"
+
     # ==================== Sentiment Scores ====================
 
     def test_sentiment_operations(self, dal):

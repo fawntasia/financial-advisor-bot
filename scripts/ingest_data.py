@@ -54,7 +54,8 @@ def ingest_stock_data(dal: DataAccessLayer, days: int = 365 * 5):
                 current_date = datetime.now().strftime("%Y-%m-%d")
                 df = client.get_ticker(ticker, start=start_date, end=current_date)
             else:
-                df = client.get_ticker(ticker, period="5y")
+                # Default to fetching data from 2000-01-01 if no data exists
+                df = client.get_ticker(ticker, start="2000-01-01")
             
             if df.empty:
                 stats["failed"] += 1
@@ -148,7 +149,7 @@ def ingest_news_data(dal: DataAccessLayer, days: int = 7):
             
     logger.info(f"News Data Complete. Queries: {stats['processed']}, Articles: {stats['records_inserted']}")
 
-def main():
+def ingest_data():
     """Main ingestion function."""
     dal = DataAccessLayer()
     
@@ -157,6 +158,9 @@ def main():
     
     # 2. Ingest News Data
     ingest_news_data(dal)
+
+def main():
+    ingest_data()
 
 if __name__ == "__main__":
     main()

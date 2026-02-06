@@ -30,6 +30,23 @@ A robust, AI-powered financial advisory system focusing on the S&P 500 market. T
 └── README.md           # This file
 ```
 
+## Quick Start
+
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python scripts/init_db.py
+streamlit run app.py
+```
+
+Note: For full sentiment and chat responses, download local model files to `models/finbert/` (FinBERT) and `models/llama3/` (Llama 3 GGUF).
+
+## Documentation
+
+- User guide: `docs/user_guide.md`
+- Technical documentation: `docs/technical_documentation.md`
+
 ## Setup Instructions
 
 ### Prerequisites
@@ -73,11 +90,21 @@ streamlit run app.py
 
 ### Data Ingestion
 
-To fetch the latest stock data and news (once implemented):
+To fetch the latest S&P 500 tickers from Wikipedia:
+
+```bash
+python scripts/update_tickers.py
+```
+
+To fetch the latest stock data and news (incremental update or full history from 2000):
 
 ```bash
 python scripts/ingest_data.py
 ```
+
+## Safety Disclaimer
+
+This tool is for educational and research purposes only and is not financial advice. Past performance does not guarantee future results.
 
 ## Development
 

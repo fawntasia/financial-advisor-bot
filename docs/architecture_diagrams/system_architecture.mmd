@@ -1,0 +1,55 @@
+graph TD
+    subgraph "UI Layer (Streamlit)"
+        UI[App Interface]
+        Chart[Plotly Charts]
+        Chat[Chat Component]
+    end
+
+    subgraph "Service Layer"
+        CB[Context Builder]
+        GR[Guardrails]
+        Prompt[Prompt Engine]
+    end
+
+    subgraph "Model Layer"
+        Llama[Llama 3 LLM (Local)]
+        FinBERT[FinBERT Sentiment]
+        Ensemble[Prediction Models]
+        LSTM[LSTM]
+        RF[Random Forest]
+        XGB[XGBoost]
+    end
+
+    subgraph "Data Layer"
+        DAL[Data Access Layer]
+        DB[(SQLite Database)]
+        Cache[Disk Cache]
+    end
+
+    subgraph "External Sources"
+        YF[yfinance API]
+        News[News Sources]
+    end
+
+    %% Flow
+    UI --> CB
+    UI --> DAL
+    
+    CB --> DAL
+    CB --> Ensemble
+    CB --> FinBERT
+    
+    Prompt --> CB
+    GR --> Llama
+    
+    Llama --> Chat
+    
+    DAL --> DB
+    DAL --> Cache
+    
+    Ensemble --> LSTM
+    Ensemble --> RF
+    Ensemble --> XGB
+    
+    YF --> DAL
+    News --> DAL

@@ -1,0 +1,44 @@
+sequenceDiagram
+    participant User
+    participant UI as Streamlit UI
+    participant CB as Context Builder
+    participant DB as SQLite DB
+    participant LLM as Llama 3
+    participant GR as Guardrails
+
+    %% Data Ingestion (Background)
+    note over DB: Daily Batch Job (6 AM)
+    
+    %% User Interaction
+    User->>UI: "Should I buy AAPL?"
+    
+    activate UI
+    UI->>CB: Build Context(query="Should I buy AAPL?")
+    
+    activate CB
+    CB->>DB: Fetch Price History (OHLCV)
+    CB->>DB: Fetch Technical Indicators (RSI, MACD)
+    CB->>DB: Fetch Sentiment Scores (FinBERT)
+    CB->>DB: Fetch Model Predictions (Ensemble)
+    DB-->>CB: Return Structured Data
+    
+    CB->>CB: Generate Natural Language Summary
+    CB-->>UI: Return Context Object
+    deactivate CB
+    
+    UI->>GR: Pre-filter(query)
+    GR-->>UI: Safe
+    
+    UI->>LLM: Generate(Prompt + Context)
+    activate LLM
+    LLM-->>UI: Raw Response
+    deactivate LLM
+    
+    UI->>GR: Post-filter & Fact Check(Response, Context)
+    activate GR
+    GR->>DB: Verify Tickers/Prices
+    GR-->>UI: Validated Response
+    deactivate GR
+    
+    UI-->>User: Display Advice + Charts
+    deactivate UI
