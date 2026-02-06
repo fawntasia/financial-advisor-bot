@@ -196,6 +196,18 @@ class TestDataAccessLayer:
         assert info_updated["name"] == "Apple Inc. Updated"
         assert info_updated["sector"] == "Technology"
 
+    def test_get_ticker_universe(self, dal):
+        """Test retrieval of ticker list with metadata for UI browsing."""
+        dal.insert_ticker("AAPL", "Apple Inc.", "Technology")
+        dal.insert_ticker("MSFT", "Microsoft Corporation", "Technology")
+
+        universe = dal.get_ticker_universe()
+        assert len(universe) == 2
+        assert universe[0]["ticker"] == "AAPL"
+        assert universe[0]["name"] == "Apple Inc."
+        assert universe[1]["ticker"] == "MSFT"
+        assert universe[1]["sector"] == "Technology"
+
     def test_get_nonexistent_ticker(self, dal):
         """Test retrieving a ticker that doesn't exist."""
         info = dal.get_ticker_info("INVALID")

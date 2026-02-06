@@ -1,33 +1,36 @@
-import streamlit as st
-import sys
 import os
 import re
+import sys
+from typing import Dict, List
+
+import streamlit as st
 
 # Ensure src is in path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 from src.database.dal import DataAccessLayer
 from src.ui.chat import ChatManager
 from src.ui.views import (
-    show_stock_analysis, 
-    show_chat_interface, 
-    show_dashboard, 
-    show_disclaimer
+    show_chat_interface,
+    show_dashboard,
+    show_disclaimer,
+    show_stock_analysis,
 )
 
 # Page configuration
 st.set_page_config(
     page_title="Financial Advisor Bot",
-    page_icon="💰",
+    page_icon="$",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
 # Custom Styling (Visual/UI Context applied)
-st.markdown("""
+st.markdown(
+    """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Space+Grotesk:wght@300;500;700&display=swap');
-    
+
     :root {
         --primary: #00f2fe;
         --secondary: #4facfe;
@@ -41,7 +44,7 @@ st.markdown("""
         font-family: 'Outfit', sans-serif;
         color: var(--text);
     }
-    
+
     h1, h2, h3 {
         font-family: 'Space Grotesk', sans-serif;
         letter-spacing: -0.02em;
@@ -56,7 +59,7 @@ st.markdown("""
         margin-bottom: 0.5rem;
         animation: fadeIn 1s ease-out;
     }
-    
+
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -66,7 +69,7 @@ st.markdown("""
         background-color: var(--bg);
         border-right: 1px solid #30363d;
     }
-    
+
     .sidebar-title {
         font-family: 'Space Grotesk', sans-serif;
         font-size: 1.8rem;
@@ -106,7 +109,10 @@ st.markdown("""
         background: var(--secondary);
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
+
 
 def initialize_session_state():
     """Initialize necessary session state variables."""
@@ -118,36 +124,95 @@ def initialize_session_state():
         st.session_state.dal = DataAccessLayer()
     if "chat_manager" not in st.session_state:
         st.session_state.chat_manager = ChatManager(st.session_state.dal)
+    if "ticker_universe" not in st.session_state:
+        try:
+            st.session_state.ticker_universe = st.session_state.dal.get_ticker_universe()
+        except Exception:
+            st.session_state.ticker_universe = []
+
+
+def _format_ticker_option(row: Dict) -> str:
+    """Create a searchable display label for ticker browse mode."""
+    ticker = str(row.get("ticker", "")).upper()
+    name = str(row.get("name", "") or "Unknown Company")
+    sector = str(row.get("sector", "") or "Unknown Sector")
+    return f"{ticker} | {name} | {sector}"
+
+
+def _extract_ticker_from_option(option: str) -> str:
+    """Extract ticker symbol from formatted option text."""
+    return option.split(" | ", 1)[0].strip().upper()
+
+
+def _sync_ticker_from_text_input():
+    """Allow manual ticker entry for quick direct jumps."""
+    ticker_input = st.text_input("Enter Ticker (e.g., TSLA, MSFT)", value=st.session_state.ticker)
+    new_ticker = ticker_input.upper().strip() if ticker_input else ""
+
+    if new_ticker and new_ticker != st.session_state.ticker:
+        ticker_pattern = r"^[A-Z]{1,5}([.-][A-Z]{1,2})?$"
+        if re.fullmatch(ticker_pattern, new_ticker):
+            st.session_state.ticker = new_ticker
+            st.toast(f"Ticker updated to: {new_ticker}")
+        else:
+            st.error(f"Invalid ticker format: {new_ticker}. Example valid symbols: AAPL, MSFT, BRK.B")
+
+
+def _render_ticker_selector():
+    """
+    Render ticker interaction controls:
+    1) Manual ticker input
+    2) Searchable browse list of the full S&P 500 universe
+    """
+    _sync_ticker_from_text_input()
+
+    universe: List[Dict] = st.session_state.get("ticker_universe", [])
+    if not universe:
+        st.warning("Ticker list unavailable. Initialize and ingest the database to browse all stocks.")
+        return
+
+    options = [_format_ticker_option(row) for row in universe if row.get("ticker")]
+    if not options:
+        st.warning("No ticker entries were found in the database.")
+        return
+
+    current_ticker = st.session_state.ticker.upper()
+    if not any(opt.startswith(f"{current_ticker} |") for opt in options):
+        options = [f"{current_ticker} | Custom Symbol | Manual Entry"] + options
+
+    default_option = next((opt for opt in options if opt.startswith(f"{current_ticker} |")), options[0])
+
+    selected_option = st.selectbox(
+        "Browse S&P 500 Constituents",
+        options=options,
+        index=options.index(default_option),
+        help="Type to search by ticker, company name, or sector.",
+    )
+    selected_ticker = _extract_ticker_from_option(selected_option)
+
+    if selected_ticker != st.session_state.ticker:
+        st.session_state.ticker = selected_ticker
+        st.toast(f"Ticker updated to: {selected_ticker}")
+
 
 def main():
     initialize_session_state()
-    
+
     # Sidebar Navigation
     with st.sidebar:
         st.markdown('<div class="sidebar-title">Antigravity Finance</div>', unsafe_allow_html=True)
-        
-        # Ticker Search
-        st.subheader("🔍 Stock Search")
-        ticker_input = st.text_input("Enter Ticker (e.g., TSLA, MSFT)", value=st.session_state.ticker)
-        new_ticker = ticker_input.upper() if ticker_input else ""
-        
-        if new_ticker and new_ticker != st.session_state.ticker:
-            # Support standard symbols and class-share tickers like BRK.B
-            ticker_pattern = r"^[A-Z]{1,5}([.-][A-Z]{1,2})?$"
-            if re.fullmatch(ticker_pattern, new_ticker):
-                st.session_state.ticker = new_ticker
-                st.toast(f"Ticker updated to: {new_ticker}")
-            else:
-                st.error(f"Invalid ticker format: {new_ticker}. Example valid symbols: AAPL, MSFT, BRK.B")
-            
+
+        st.subheader("Stock Search")
+        _render_ticker_selector()
+
         st.markdown("---")
-        
+
         # View Selection
         st.subheader("Navigation")
         view_options = ["Dashboard", "Stock Analysis", "Chat Interface"]
         selected_view = st.radio("Go to:", view_options, index=view_options.index(st.session_state.current_view))
         st.session_state.current_view = selected_view
-        
+
         st.markdown("---")
         st.info(f"Currently tracking: **{st.session_state.ticker}**")
 
@@ -158,9 +223,10 @@ def main():
         show_stock_analysis()
     elif st.session_state.current_view == "Chat Interface":
         show_chat_interface()
-        
+
     # Financial Disclaimer (Mandatory on all pages)
     show_disclaimer()
+
 
 if __name__ == "__main__":
     main()

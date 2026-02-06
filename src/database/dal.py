@@ -37,6 +37,24 @@ class DataAccessLayer:
             cursor = conn.cursor()
             cursor.execute("SELECT ticker FROM tickers ORDER BY ticker")
             return [row[0] for row in cursor.fetchall()]
+
+    def get_ticker_universe(self) -> List[Dict]:
+        """
+        Get the full ticker universe with display metadata.
+
+        Returns:
+            List of dictionaries with keys: ticker, name, sector.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT ticker, name, sector
+                FROM tickers
+                ORDER BY ticker
+                """
+            )
+            return [dict(row) for row in cursor.fetchall()]
     
     def get_ticker_info(self, ticker: str) -> Optional[Dict]:
         """Get information about a specific ticker."""
