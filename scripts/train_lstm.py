@@ -142,6 +142,7 @@ def train_lstm(
     save_dir: str = "models",
     sequence_length: int = 60,
     train_split: float = 0.8,
+    val_split: float = 0.1,
     max_tickers: Optional[int] = None,
 ) -> Tuple[LSTMModel, object]:
     """
@@ -190,6 +191,18 @@ def train_lstm(
         raise ValueError("No ticker produced valid LSTM sequences. Check DB data coverage.")
 
     X_train, y_train, X_test, y_test, test_ticker_labels = _aggregate_sequences(per_ticker_batches)
+
+    if not 0 < val_split < 1:
+        raise ValueError("val_split must be between 0 and 1.")
+    val_size = max(1, int(len(X_train) * val_split))
+    if len(X_train) - val_size < 1:
+        raise ValueError("Not enough training sequences to create a separate validation split.")
+
+    X_train_fit = X_train[:-val_size]
+    y_train_fit = y_train[:-val_size]
+    X_val = X_train[-val_size:]
+    y_val = y_train[-val_size:]
+
     used_tickers = [b["ticker"] for b in per_ticker_batches]
     scaler_by_ticker = {
         b["ticker"]: {
@@ -200,9 +213,11 @@ def train_lstm(
     }
 
     print(f"Tickers used: {len(used_tickers)} / {len(selected_tickers)}")
-    print(f"Train shape: {X_train.shape}, Test shape: {X_test.shape}")
+    print(f"Train shape: {X_train_fit.shape}")
+    print(f"Validation shape: {X_val.shape}")
+    print(f"Test shape: {X_test.shape}")
 
-    model = LSTMModel(sequence_length=sequence_length, n_features=X_train.shape[2])
+    model = LSTMModel(sequence_length=sequence_length, n_features=X_train_fit.shape[2])
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_tag = "all" if ticker.upper() == "ALL" else ticker.upper()
@@ -211,8 +226,8 @@ def train_lstm(
 
     print("Training model...")
     history = model.train(
-        X_train,
-        y_train,
+        X_train_fit,
+        y_train_fit,
         X_test,
         y_test,
         epochs=epochs,
@@ -220,6 +235,8 @@ def train_lstm(
         save_path=save_path,
         patience=5,
         verbose=1,
+        X_val=X_val,
+        y_val=y_val,
     )
 
     print("Evaluating model...")
@@ -261,8 +278,10 @@ def train_lstm(
         "skipped_tickers": skipped,
         "sequence_length": sequence_length,
         "feature_columns": FEATURE_COLS,
-        "train_shape": list(X_train.shape),
+        "train_shape": list(X_train_fit.shape),
+        "validation_shape": list(X_val.shape),
         "test_shape": list(X_test.shape),
+        "validation_split": val_split,
         "global_test_mse_scaled": float(test_mse),
         "avg_per_ticker_rmse_price": avg_rmse,
     }
@@ -290,6 +309,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_dir", type=str, default="models", help="Directory to save model artifacts")
     parser.add_argument("--sequence_length", type=int, default=60, help="LSTM lookback window")
     parser.add_argument("--train_split", type=float, default=0.8, help="Train split per ticker")
+    parser.add_argument("--val_split", type=float, default=0.1, help="Validation split ratio from training sequences")
     parser.add_argument(
         "--max_tickers",
         type=int,
@@ -305,5 +325,6 @@ if __name__ == "__main__":
         save_dir=args.save_dir,
         sequence_length=args.sequence_length,
         train_split=args.train_split,
+        val_split=args.val_split,
         max_tickers=args.max_tickers,
     )

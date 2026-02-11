@@ -1,36 +1,44 @@
 # Model Training
 
 ## Purpose
-Document the training setup for the LSTM, Random Forest, and XGBoost models, including data preparation, feature set, splits, and evaluation approach. Results are captured separately once training runs are finalized.
+Document the current training setup for LSTM, Random Forest, and XGBoost models, including real data sources, feature preparation, splits, and artifacts produced by scripts.
 
-## Data Preparation
-- **Source Data**: Historical OHLCV prices plus FinBERT-scored news sentiment stored in `data/financial_advisor.db`.
-- **Indicator Pipeline**: Technical indicators are computed from price history and stored in the `technical_indicators` table.
-- **Cleaning**: Remove rows with missing indicator values for the required lookback window; ensure chronological ordering per ticker.
-- **Scaling**: Apply min-max scaling fit on the training segment only; reuse for validation/test segments to avoid leakage.
-- **Sequence Windows (LSTM)**: Build 60-day lookback sequences to predict the next day target.
+## Current Data Sources
+- **LSTM (`scripts/train_lstm.py`)**:
+  - Reads historical OHLCV from SQLite via `DataAccessLayer.get_stock_prices`.
+  - Default mode is `--ticker ALL`, meaning all tickers currently present in the `tickers` table are included.
+  - Does not call yfinance during training.
+- **Random Forest / XGBoost (`scripts/train_random_forest.py`, `scripts/train_xgboost.py`)**:
+  - Use `StockDataProcessor.fetch_data()` and therefore still call yfinance.
 
 ## Feature Set
-Model inputs are aligned to the feature engineering pipeline described in `src/features/indicators.py` and `src/data/stock_data.py`.
+### LSTM Features
+- Feature columns used in training:
+  - `Close`
+  - `SMA_20`
+  - `SMA_50`
+  - `RSI`
+  - `MACD`
+  - `Signal_Line`
+- Target: next-step scaled `Close` (regression target built from sequence endpoint).
+- Indicators are generated per ticker with `StockDataProcessor.add_technical_indicators`.
+- Sentiment is not currently part of the LSTM feature tensor.
 
-- **Core Price Features**: Close price, volume.
-- **Technical Indicators**: RSI, MACD, Bollinger Bands position, SMA/EMA ratios (as computed in the indicator pipeline).
-- **Sentiment Features**: Daily aggregated FinBERT sentiment scores (where available).
-- **Targets**:
-  - **LSTM**: Next-day price (regression).
-  - **Random Forest / XGBoost**: Next-day direction (UP=1, DOWN=0).
+### RF/XGB Features
+- Directional classification features from `StockDataProcessor.prepare_for_classification`.
+- Target: next-day direction (`UP=1`, `DOWN=0`).
 
 ## Training Splits
-All splits are chronological to prevent leakage.
+All splits are chronological to reduce leakage.
 
-- **Primary Split**:
-  - **Train**: 2019-2021
-  - **Validation**: 2022
-  - **Test**: 2023
-- **Walk-Forward Validation**:
-  - Expanding window with rolling quarters in 2022-2023.
-  - Each step trains on past data and evaluates on the next quarter.
-  - Aggregated metrics are reported across steps.
+### LSTM Split Logic
+- Per ticker split: default `train_split=0.8`.
+- Scalers are fitted on per-ticker train partition only.
+- Sequence construction:
+  - Train sequences from ticker train partition.
+  - Test sequences include train tail context (`sequence_length`) to preserve continuity.
+- A dedicated validation split is carved from aggregated training sequences (`--val_split`, default `0.1`) and used for early stopping, while the test split remains held out for final evaluation.
+- Final model sees one aggregated dataset across all included tickers.
 
 ## Model Training Details
 
@@ -39,7 +47,18 @@ All splits are chronological to prevent leakage.
 - **Loss**: Mean Squared Error.
 - **Optimizer**: Adam.
 - **Callbacks**: EarlyStopping and ModelCheckpoint.
-- **Input Window**: 60-day sequences.
+- **Input Window**: default 60 timesteps (`--sequence_length`).
+- **Scope**: single global model trained across all tickers by default.
+- **CLI**:
+  - `python scripts/train_lstm.py --ticker ALL --epochs 50 --batch_size 32`
+  - Optional: `--save_dir`, `--sequence_length`, `--train_split`, `--max_tickers`
+- **Artifacts**:
+  - `models/lstm_<all|ticker>_<timestamp>.keras`
+  - `models/lstm_<all|ticker>_<timestamp>_scalers.joblib`
+  - `models/lstm_<all|ticker>_<timestamp>_metadata.json`
+- **Reported metrics**:
+  - Global scaled test MSE.
+  - Average per-ticker RMSE in original price space (via per-ticker target scaler).
 
 ### Random Forest
 - **Estimator**: `RandomForestClassifier`.
@@ -48,59 +67,17 @@ All splits are chronological to prevent leakage.
 
 ### XGBoost
 - **Estimator**: `XGBClassifier`.
-- **Early Stopping**: Enabled with validation data to reduce overfitting.
+- **Early Stopping**: Enabled with a dedicated validation split (`--val-split`) to reduce overfitting without using test data.
 - **Regularization**: Standard XGBoost regularization parameters (as configured in the training script).
 - **Feature Importance**: Recorded for comparison with Random Forest.
 
-## Hyperparameters
-Hyperparameter values are recorded in training artifacts and should be updated here once runs are finalized.
-
-### LSTM
-- **Window Size**: 60
-- **Units**: 128, 64
-- **Dropout**: {TBD}
-- **Batch Size**: {TBD}
-- **Epochs**: {TBD}
-
-### Random Forest
-- **n_estimators**: {TBD}
-- **max_depth**: {TBD}
-- **min_samples_split**: {TBD}
-- **min_samples_leaf**: {TBD}
-
-### XGBoost
-- **learning_rate**: {TBD}
-- **n_estimators**: {TBD}
-- **max_depth**: {TBD}
-- **subsample**: {TBD}
-- **colsample_bytree**: {TBD}
-
 ## Evaluation Metrics
-Metrics align with the walk-forward validation and model selection docs.
-
-- **Directional Accuracy**
-- **RMSE**
-- **MAE**
-- **Sharpe Ratio**
-- **Max Drawdown**
-
-## Results (Placeholders)
-Results will be populated after full training runs and walk-forward validation complete.
-
-- **LSTM**:
-  - **Average Accuracy**: {TBD}
-  - **Average RMSE**: {TBD}
-  - **Average Sharpe Ratio**: {TBD}
-  - **Average Max Drawdown**: {TBD}
-- **Random Forest**:
-  - **Average Accuracy**: {TBD}
-  - **Average Sharpe Ratio**: {TBD}
-  - **Average Max Drawdown**: {TBD}
-- **XGBoost**:
-  - **Average Accuracy**: {TBD}
-  - **Average Sharpe Ratio**: {TBD}
-  - **Average Max Drawdown**: {TBD}
+- **LSTM training script**: scaled MSE + per-ticker RMSE summary.
+- **Walk-forward validation (`scripts/run_walkforward.py`)**:
+  - Supports RF/XGB.
+  - Produces directional accuracy, RMSE on labels, Sharpe ratio, and max drawdown aggregates.
 
 ## Notes
-- Walk-forward validation is required for all three models to avoid temporal leakage.
-- Exact metrics and hyperparameters should be sourced from training logs and `docs/validation_report.md` once finalized.
+- LSTM walk-forward is not yet wired in `scripts/run_walkforward.py`.
+- Ticker coverage is dynamic and depends on `tickers` table contents (not hardcoded in the trainer).
+- For reproducibility, use metadata JSON generated per LSTM run to capture exact data coverage and run parameters.

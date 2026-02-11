@@ -33,25 +33,45 @@ class LSTMModel(StockPredictor):
         optimizer = Adam(learning_rate=self.learning_rate)
         self.model.compile(optimizer=optimizer, loss='mean_squared_error')
         
-    def train(self, X_train, y_train, X_test, y_test, epochs=50, batch_size=32, 
-              save_path=None, patience=5, verbose=1):
+    def train(
+        self,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        epochs=50,
+        batch_size=32,
+        save_path=None,
+        patience=5,
+        verbose=1,
+        X_val=None,
+        y_val=None,
+    ):
         """
         Train the model with Early Stopping and Checkpointing.
         
         Args:
             X_train: Training features (samples, seq_len, features)
             y_train: Training targets
-            X_test: Validation features
-            y_test: Validation targets
+            X_test: Held-out test features
+            y_test: Held-out test targets
             epochs: Maximum number of epochs
             batch_size: Batch size
             save_path: Path to save the best model (optional)
             patience: Patience for early stopping
             verbose: Verbosity level
+            X_val: Optional validation features for early stopping.
+            y_val: Optional validation targets for early stopping.
             
         Returns:
             History object containing training history
         """
+        if (X_val is None) != (y_val is None):
+            raise ValueError("X_val and y_val must both be provided or both omitted.")
+
+        validation_X = X_val if X_val is not None else X_test
+        validation_y = y_val if y_val is not None else y_test
+
         callbacks = []
         
         # Early Stopping
@@ -79,7 +99,7 @@ class LSTMModel(StockPredictor):
             
         history = self.model.fit(
             X_train, y_train,
-            validation_data=(X_test, y_test),
+            validation_data=(validation_X, validation_y),
             epochs=epochs,
             batch_size=batch_size,
             callbacks=callbacks,

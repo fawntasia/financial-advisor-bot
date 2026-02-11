@@ -13,7 +13,9 @@ This document summarizes the architecture and data flow for the Financial Adviso
 1. **Ingestion**: Scripts fetch OHLCV data and news, then write to SQLite.
 2. **Feature/Indicators**: Technical indicators computed and stored for each ticker/date.
 3. **Sentiment**: FinBERT scores headlines and aggregates daily sentiment.
-4. **Modeling**: ML models train on historical features and store predictions + performance.
+4. **Modeling**:
+   - **LSTM** (`scripts/train_lstm.py`) trains from SQLite price history via DAL and saves local model artifacts.
+   - **RF/XGB** training scripts currently still fetch data via `StockDataProcessor`/yfinance.
 5. **LLM Context**: DAL pulls latest price, indicators, sentiment, and predictions to build prompt context.
 6. **UI**: Streamlit displays dashboards and chat responses using the LLM context.
 
@@ -26,7 +28,8 @@ This document summarizes the architecture and data flow for the Financial Adviso
 
 ### Model Layer
 - `src/models`: Model definitions and utilities.
-  - `lstm_model.py`: TensorFlow/Keras sequence model.
+  - `lstm_model.py`: Canonical TensorFlow/Keras LSTM sequence model.
+  - `lstm_wrapper.py`: Backward-compatible alias to `LSTMModel` (no separate PyTorch LSTM implementation).
   - `random_forest_model.py`: Classification model for direction.
   - `xgboost_model.py`: Gradient-boosted classifier with time-series splits.
   - `baselines.py`, `evaluation.py`, `validation.py`, `comparison.py`: baselines, metrics, walk-forward validation, and selection.
@@ -70,15 +73,29 @@ This document summarizes the architecture and data flow for the Financial Adviso
 - `models/`: Trained model files and checkpoints.
 - `results/`: Output artifacts from backtests and comparisons.
 
+### LSTM Artifact Format
+`scripts/train_lstm.py` now saves three artifacts per run:
+- `models/lstm_<all|ticker>_<timestamp>.keras`: trained Keras model.
+- `models/lstm_<all|ticker>_<timestamp>_scalers.joblib`: per-ticker feature/target scalers.
+- `models/lstm_<all|ticker>_<timestamp>_metadata.json`: run metadata (coverage, shapes, metrics, and paths).
+
 ## Operational Scripts (Selected)
 - `scripts/init_db.py`: Creates schema and seeds S&P 500 tickers.
 - `scripts/ingest_data.py`: Main ingestion workflow for prices + news.
 - `scripts/download_historical_data.py`, `scripts/fetch_news.py`: Data source fetchers.
 - `scripts/run_sentiment_analysis.py`: FinBERT scoring and aggregation.
-- `scripts/train_lstm.py`, `scripts/train_random_forest.py`, `scripts/train_xgboost.py`: Model training.
+- `scripts/train_lstm.py`: DB-backed LSTM trainer (defaults to all tickers in `tickers` table).
+- `scripts/train_random_forest.py`, `scripts/train_xgboost.py`: Classifier training scripts.
 - `scripts/run_baselines.py`, `scripts/compare_models.py`, `scripts/run_walkforward.py`: Evaluation and comparison workflows.
 
 ## Notes on Runtime Behavior
-- The Streamlit UI and LLM run locally; external APIs are used by ingestion scripts only.
+- The Streamlit UI and LLM run locally with database-backed context.
+- External APIs are used by ingestion scripts and by some training scripts (RF/XGB). The LSTM training path is DB-backed.
 - Llama 3 requires a local GGUF model file in `models/llama3/` to enable full chat responses.
 - FinBERT model files are expected under `models/finbert/` for sentiment runs.
+
+## Current Implementation Notes
+- Walk-forward validation currently supports RF/XGB only; `--model lstm` is not implemented in `scripts/run_walkforward.py`.
+- LSTM training is DB-backed and API-independent, but RF/XGB training scripts still use yfinance through `StockDataProcessor`.
+- LSTM and XGBoost training scripts now reserve a dedicated validation split for early stopping; held-out test sets are no longer reused as validation during training.
+- Model artifacts are saved locally under `models/`; scripts do not automatically register LSTM outputs into `predictions`/`model_performance` tables.

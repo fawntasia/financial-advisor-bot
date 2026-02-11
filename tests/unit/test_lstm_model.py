@@ -178,6 +178,35 @@ def test_train_invokes_fit_with_callbacks_and_validation(monkeypatch, tmp_path):
 
 
 @pytest.mark.unit
+def test_train_uses_explicit_validation_set_when_provided(monkeypatch):
+    lstm_model = import_lstm_model(monkeypatch)
+    model = lstm_model.LSTMModel(sequence_length=3, n_features=1)
+
+    X_train = np.zeros((4, 3, 1))
+    y_train = np.array([1.0, 2.0, 3.0, 4.0])
+    X_test = np.zeros((2, 3, 1))
+    y_test = np.array([1.0, 2.0])
+    X_val = np.ones((1, 3, 1))
+    y_val = np.array([5.0])
+
+    model.train(
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        epochs=1,
+        batch_size=2,
+        patience=1,
+        verbose=0,
+        X_val=X_val,
+        y_val=y_val,
+    )
+
+    fit_call = model.model.fit_calls[0]
+    assert fit_call["validation_data"] == (X_val, y_val)
+
+
+@pytest.mark.unit
 def test_predict_calls_underlying_model(monkeypatch):
     lstm_model = import_lstm_model(monkeypatch)
     model = lstm_model.LSTMModel(sequence_length=2, n_features=1)

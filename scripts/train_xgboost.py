@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.data.stock_data import StockDataProcessor
 from src.models.xgboost_model import XGBoostModel
 
-def train_xgboost(ticker, tune=True):
+def train_xgboost(ticker, tune=True, val_split=0.1):
     print(f"Starting XGBoost training for {ticker}...")
     
     # 1. Fetch & Prepare Data
@@ -25,8 +25,21 @@ def train_xgboost(ticker, tune=True):
     # Returns: X_train, y_train, X_test, y_test, feature_cols
     X_train, y_train, X_test, y_test, feature_cols = processor.prepare_for_classification(processor.data)
     
-    print(f"Training data shape: {X_train.shape}")
-    print(f"Testing data shape: {X_test.shape}")
+    if not 0 < val_split < 1:
+        raise ValueError("val_split must be between 0 and 1.")
+
+    val_size = max(1, int(len(X_train) * val_split))
+    if len(X_train) - val_size < 1:
+        raise ValueError("Not enough training rows to create a separate validation split.")
+
+    X_train_fit = X_train[:-val_size]
+    y_train_fit = y_train[:-val_size]
+    X_val = X_train[-val_size:]
+    y_val = y_train[-val_size:]
+
+    print(f"Train shape: {X_train_fit.shape}")
+    print(f"Validation shape: {X_val.shape}")
+    print(f"Test shape: {X_test.shape}")
     
     # 2. Initialize Model
     # Try to use GPU if available, though we default to False here to be safe unless specified
@@ -35,7 +48,15 @@ def train_xgboost(ticker, tune=True):
     
     # 3. Train
     print(f"Training model (Tuning: {tune})...")
-    model.train(X_train, y_train, X_test, y_test, tune_hyperparameters=tune)
+    model.train(
+        X_train_fit,
+        y_train_fit,
+        X_test,
+        y_test,
+        tune_hyperparameters=tune,
+        X_val=X_val,
+        y_val=y_val,
+    )
     
     # 4. Save
     date_str = datetime.now().strftime("%Y%m%d")
@@ -57,7 +78,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train XGBoost Model')
     parser.add_argument('--ticker', type=str, default='AAPL', help='Stock ticker')
     parser.add_argument('--no-tune', action='store_true', help='Skip hyperparameter tuning')
+    parser.add_argument('--val-split', type=float, default=0.1, help='Validation split ratio from training data')
     
     args = parser.parse_args()
     
-    train_xgboost(args.ticker, tune=not args.no_tune)
+    train_xgboost(args.ticker, tune=not args.no_tune, val_split=args.val_split)
