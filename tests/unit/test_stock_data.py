@@ -18,7 +18,7 @@ def _make_close_only_df(rows=120, start=100.0, step=0.5):
 
 
 @pytest.mark.unit
-def test_add_technical_indicators_adds_columns_and_fills():
+def test_add_technical_indicators_adds_columns_and_drops_warmup():
     df = _make_close_only_df(rows=120)
     processor = StockDataProcessor("TEST")
 
@@ -28,6 +28,9 @@ def test_add_technical_indicators_adds_columns_and_fills():
     for col in expected_cols:
         assert col in result.columns
         assert not result[col].isna().any()
+
+    assert len(result) < len(df)
+    assert result.index[0] > df.index[0]
 
 
 @pytest.mark.unit
@@ -39,11 +42,15 @@ def test_prepare_for_lstm_shapes_and_target_scaler():
         df, sequence_length=10, target_col="Close"
     )
 
-    assert data.shape[0] == 100
-    assert X_train.shape == (70, 10, 6)
-    assert y_train.shape == (70,)
-    assert X_test.shape == (10, 10, 6)
-    assert y_test.shape == (10,)
+    split_idx = int(len(data) * 0.8)
+    expected_train_sequences = max(split_idx - 10, 0)
+    expected_test_sequences = max((len(data) - split_idx) - 10, 0)
+
+    assert data.shape[0] == 51
+    assert X_train.shape == (expected_train_sequences, 10, 6)
+    assert y_train.shape == (expected_train_sequences,)
+    assert X_test.shape == (expected_test_sequences, 10, 6)
+    assert y_test.shape == (expected_test_sequences,)
     assert target_scaler is processor.target_scaler
 
 
@@ -61,14 +68,14 @@ def test_get_latest_sequence_uses_indicators_and_scaler():
 
 @pytest.mark.unit
 def test_prepare_for_classification_targets_and_shapes():
-    df = _make_close_only_df(rows=51)
+    df = _make_close_only_df(rows=220)
     processor = StockDataProcessor("TEST")
 
     X_train, y_train, X_test, y_test, feature_cols = processor.prepare_for_classification(
         df, target_col="Close"
     )
 
-    total_rows = 50
+    total_rows = len(processor.add_technical_indicators(df)) - 1
     split_idx = int(total_rows * 0.8)
     assert X_train.shape == (split_idx, 6)
     assert y_train.shape == (split_idx,)
