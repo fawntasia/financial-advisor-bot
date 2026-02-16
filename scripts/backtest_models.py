@@ -1,131 +1,195 @@
+import argparse
 import os
 import sys
-import argparse
-import pandas as pd
-import numpy as np
+from typing import Optional, Tuple
+
 import joblib
-from datetime import datetime
-import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 # Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.data.stock_data import StockDataProcessor
+from src.models.evaluation import calculate_metrics
+from src.models.lstm_model import LSTMModel
 from src.models.random_forest_model import RandomForestModel
+from src.models.trading_config import predictions_to_signals
+from src.models.xgboost_model import XGBoostModel
 
-def calculate_metrics(daily_returns):
-    """
-    Calculate performance metrics.
-    """
-    total_return = (daily_returns + 1).prod() - 1
-    
-    # Annualized Sharpe Ratio (assuming 252 trading days)
-    if len(daily_returns) > 1 and daily_returns.std() != 0:
-        sharpe_ratio = (daily_returns.mean() / daily_returns.std()) * np.sqrt(252)
-    else:
-        sharpe_ratio = 0
-        
-    # Max Drawdown
-    cumulative_returns = (daily_returns + 1).cumprod()
-    peak = cumulative_returns.cummax()
-    drawdown = (cumulative_returns - peak) / peak
-    max_drawdown = drawdown.min()
-    
-    # Win Rate (Percentage of days with positive return)
+FEATURE_COLS = ["Close", "SMA_20", "SMA_50", "RSI", "MACD", "Signal_Line"]
+
+
+def _load_model(model_path: str):
+    ext = os.path.splitext(model_path)[1].lower()
+    if ext == ".pkl":
+        model = RandomForestModel()
+        model.load(model_path)
+        return model, "classification"
+    if ext == ".json":
+        model = XGBoostModel()
+        model.load(model_path)
+        return model, "classification"
+    if ext in {".keras", ".h5"}:
+        model = LSTMModel()
+        model.load(model_path)
+        return model, "lstm"
+    raise ValueError("Unsupported model format. Use .pkl, .json, or .keras/.h5")
+
+
+def _infer_lstm_scaler_path(model_path: str) -> str:
+    stem, _ = os.path.splitext(model_path)
+    return f"{stem}_scalers.joblib"
+
+
+def _lstm_predictions(
+    model: LSTMModel,
+    backtest_df: pd.DataFrame,
+    ticker: str,
+    scaler_path: str,
+) -> Tuple[pd.DataFrame, np.ndarray]:
+    scaler_payload = joblib.load(scaler_path)
+    if not isinstance(scaler_payload, dict) or ticker not in scaler_payload:
+        raise ValueError(
+            f"Scaler payload missing ticker '{ticker}'. Provide scaler file produced by train_lstm.py."
+        )
+
+    feature_scaler = scaler_payload[ticker]["feature_scaler"]
+    target_scaler = scaler_payload[ticker]["target_scaler"]
+    sequence_length = model.sequence_length
+
+    if len(backtest_df) <= sequence_length:
+        raise ValueError("Not enough rows in backtest window for LSTM sequence length.")
+
+    features = backtest_df[FEATURE_COLS].values
+    scaled = feature_scaler.transform(features)
+
+    X = []
+    for i in range(sequence_length, len(scaled)):
+        X.append(scaled[i - sequence_length : i, :])
+    X = np.asarray(X, dtype=np.float32)
+
+    pred_scaled = model.predict(X).reshape(-1, 1)
+    pred_price = target_scaler.inverse_transform(pred_scaled).reshape(-1)
+
+    aligned = backtest_df.iloc[sequence_length:].copy()
+    prev_close = backtest_df["Close"].shift(1).iloc[sequence_length:].values
+    pred_direction = (pred_price > prev_close).astype(int)
+    aligned["Predicted_Close"] = pred_price
+    return aligned, pred_direction
+
+
+def calculate_metrics_for_backtest(daily_returns: pd.Series) -> dict:
+    metrics = calculate_metrics(daily_returns)
     in_market_returns = daily_returns[daily_returns != 0]
-    win_rate = (in_market_returns > 0).mean() if len(in_market_returns) > 0 else 0
-    
-    return {
-        "Total Return": total_return,
-        "Sharpe Ratio": sharpe_ratio,
-        "Max Drawdown": max_drawdown,
-        "Win Rate": win_rate
-    }
+    metrics["win_rate"] = float((in_market_returns > 0).mean()) if len(in_market_returns) else 0.0
+    return metrics
 
-def run_backtest(ticker, model_path, start_date='2023-01-01', end_date='2023-12-31', transaction_cost=0.001):
+
+def run_backtest(
+    ticker,
+    model_path,
+    start_date="2023-01-01",
+    end_date="2023-12-31",
+    transaction_cost=0.001,
+    scaler_path: Optional[str] = None,
+):
     """
     Run backtest for a given ticker and model.
+    Supports RandomForest (.pkl), XGBoost (.json), and LSTM (.keras/.h5).
     """
+    ticker = ticker.upper()
     print(f"Running backtest for {ticker} using model {model_path}...")
-    
-    # 1. Load Data
+
     processor = StockDataProcessor(ticker)
-    df = processor.fetch_data(years=5) 
+    df = processor.fetch_data(years=10)
     df = processor.add_technical_indicators(df)
-    
+
     backtest_df = df[(df.index >= start_date) & (df.index <= end_date)].copy()
-    
     if backtest_df.empty:
         print(f"No data found for {ticker} in range {start_date} to {end_date}")
         return
-        
-    # 2. Load Model
-    if model_path.endswith('.pkl'):
-        model = RandomForestModel()
-        model.load(model_path)
-    else:
-        raise ValueError("Unsupported model format. Only .pkl (Random Forest) is supported currently.")
 
-    # 3. Prepare Features
-    feature_cols = ['Close', 'SMA_20', 'SMA_50', 'RSI', 'MACD', 'Signal_Line']
-    X = backtest_df[feature_cols].values
-    
-    # 4. Generate Predictions
-    predictions = model.predict(X)
-    
-    # 5. Simulate Trading
-    backtest_df['Prediction'] = predictions
-    backtest_df['Signal'] = backtest_df['Prediction'].shift(1).fillna(0)
-    
-    backtest_df['Market_Return'] = backtest_df['Close'].pct_change().fillna(0)
-    backtest_df['Strategy_Return_Raw'] = backtest_df['Signal'] * backtest_df['Market_Return']
-    
-    backtest_df['Trade'] = backtest_df['Signal'].diff().abs().fillna(0)
-    if backtest_df['Signal'].iloc[0] == 1:
-        backtest_df.iloc[0, backtest_df.columns.get_loc('Trade')] = 1
-        
-    backtest_df['Cost'] = backtest_df['Trade'] * transaction_cost
-    backtest_df['Strategy_Return'] = backtest_df['Strategy_Return_Raw'] - backtest_df['Cost']
-    
-    # 6. Calculate Metrics
-    strategy_metrics = calculate_metrics(backtest_df['Strategy_Return'])
-    benchmark_metrics = calculate_metrics(backtest_df['Market_Return'])
-    
-    # 7. Equity Curve Data
-    backtest_df['Cumulative_Strategy'] = (backtest_df['Strategy_Return'] + 1).cumprod()
-    backtest_df['Cumulative_Market'] = (backtest_df['Market_Return'] + 1).cumprod()
-    
+    model, model_kind = _load_model(model_path)
+
+    if model_kind == "classification":
+        X = backtest_df[FEATURE_COLS].values
+        predictions = model.predict(X)
+        aligned_df = backtest_df.copy()
+    else:
+        scaler_path = scaler_path or _infer_lstm_scaler_path(model_path)
+        if not os.path.exists(scaler_path):
+            raise FileNotFoundError(
+                f"LSTM scaler file not found at {scaler_path}. Pass --scaler path generated during training."
+            )
+        aligned_df, predictions = _lstm_predictions(model, backtest_df, ticker, scaler_path)
+
+    aligned_df["Prediction"] = predictions
+    raw_signal = predictions_to_signals(predictions, index=aligned_df.index)
+    aligned_df["Signal"] = raw_signal.shift(1).fillna(0)
+
+    aligned_df["Market_Return"] = aligned_df["Close"].pct_change().fillna(0)
+    aligned_df["Strategy_Return_Raw"] = aligned_df["Signal"] * aligned_df["Market_Return"]
+
+    aligned_df["Trade"] = aligned_df["Signal"].diff().abs().fillna(0)
+    if aligned_df["Signal"].iloc[0] != 0:
+        aligned_df.iloc[0, aligned_df.columns.get_loc("Trade")] = 1
+
+    aligned_df["Cost"] = aligned_df["Trade"] * transaction_cost
+    aligned_df["Strategy_Return"] = aligned_df["Strategy_Return_Raw"] - aligned_df["Cost"]
+
+    strategy_metrics = calculate_metrics_for_backtest(aligned_df["Strategy_Return"])
+    benchmark_metrics = calculate_metrics_for_backtest(aligned_df["Market_Return"])
+
+    aligned_df["Cumulative_Strategy"] = (aligned_df["Strategy_Return"] + 1).cumprod()
+    aligned_df["Cumulative_Market"] = (aligned_df["Market_Return"] + 1).cumprod()
+
     print("\n=== Strategy Metrics ===")
-    for k, v in strategy_metrics.items():
-        if "Ratio" in k or "Rate" in k:
-            print(f"{k}: {v:.4f}")
+    for key, value in strategy_metrics.items():
+        if "sharpe" in key.lower() or "win_rate" in key.lower():
+            print(f"{key}: {value:.4f}")
         else:
-            print(f"{k}: {v:.2%}")
+            print(f"{key}: {value:.2%}")
 
     print("\n=== Benchmark Metrics ===")
-    for k, v in benchmark_metrics.items():
-        if "Ratio" in k or "Rate" in k:
-            print(f"{k}: {v:.4f}")
+    for key, value in benchmark_metrics.items():
+        if "sharpe" in key.lower() or "win_rate" in key.lower():
+            print(f"{key}: {value:.4f}")
         else:
-            print(f"{k}: {v:.2%}")
-            
-    # Save results
+            print(f"{key}: {value:.2%}")
+
     results_dir = "results"
     os.makedirs(results_dir, exist_ok=True)
     csv_path = os.path.join(results_dir, f"backtest_{ticker}_{start_date[:4]}.csv")
-    backtest_df[['Close', 'Signal', 'Strategy_Return', 'Market_Return', 'Cumulative_Strategy', 'Cumulative_Market']].to_csv(csv_path)
-    
-    return strategy_metrics, benchmark_metrics, backtest_df
+    aligned_df[
+        [
+            "Close",
+            "Prediction",
+            "Signal",
+            "Strategy_Return",
+            "Market_Return",
+            "Cumulative_Strategy",
+            "Cumulative_Market",
+        ]
+    ].to_csv(csv_path)
+    print(f"\nBacktest rows saved to {csv_path}")
+
+    return strategy_metrics, benchmark_metrics, aligned_df
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run model backtesting")
+    parser = argparse.ArgumentParser(description="Run model backtesting.")
     parser.add_argument("--ticker", type=str, default="AAPL", help="Stock ticker symbol")
-    parser.add_argument("--model", type=str, required=True, help="Path to the trained model (.pkl)")
+    parser.add_argument("--model", type=str, required=True, help="Path to trained model artifact")
     parser.add_argument("--start", type=str, default="2023-01-01", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", type=str, default="2023-12-31", help="End date (YYYY-MM-DD)")
     parser.add_argument("--cost", type=float, default=0.001, help="Transaction cost (0.001 = 0.1%)")
-    
+    parser.add_argument(
+        "--scaler",
+        type=str,
+        default=None,
+        help="Optional scaler path for LSTM models (defaults to <model_stem>_scalers.joblib)",
+    )
+
     args = parser.parse_args()
-    
-    run_backtest(args.ticker, args.model, args.start, args.end, args.cost)
+    run_backtest(args.ticker, args.model, args.start, args.end, args.cost, scaler_path=args.scaler)

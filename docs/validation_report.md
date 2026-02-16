@@ -10,6 +10,8 @@
 | Metric | Value |
 |--------|-------|
 | Average Test Accuracy | {avg_test_acc} |
+| Average Test Balanced Accuracy | {avg_test_bal_acc} |
+| Average Test F1 | {avg_test_f1} |
 | Average Sharpe Ratio | {avg_sharpe} |
 | Average Max Drawdown | {avg_max_drawdown} |
 | Average RMSE | {avg_rmse} |
@@ -23,11 +25,11 @@
 *Notes: A high gap or low overfitting ratio indicates potential overfitting.*
 
 ## Detailed Step-by-Step Results
-| Step | Test Period Start | Test Period End | Train Acc | Val Acc | Test Acc | Sharpe | Max DD |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| 1 | ... | ... | ... | ... | ... | ... | ... |
-| 2 | ... | ... | ... | ... | ... | ... | ... |
-| 3 | ... | ... | ... | ... | ... | ... | ... |
+| Step | Test Period Start | Test Period End | Train Acc | Val Acc | Test Acc | Test Bal Acc | Test F1 | Test RMSE | Sharpe | Max DD |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 1 | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
+| 2 | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
+| 3 | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
 
 ## Observations
 - [Insert observations about model stability over different market regimes]

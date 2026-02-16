@@ -75,14 +75,51 @@ def test_prepare_for_classification_targets_and_shapes():
         df, target_col="Close"
     )
 
-    total_rows = len(processor.add_technical_indicators(df)) - 1
-    split_idx = int(total_rows * 0.8)
-    assert X_train.shape == (split_idx, 6)
-    assert y_train.shape == (split_idx,)
-    assert X_test.shape == (total_rows - split_idx, 6)
-    assert y_test.shape == (total_rows - split_idx,)
+    enriched_rows = len(processor.add_technical_indicators(df))
+    split_idx = int(enriched_rows * 0.8)
+    expected_train_rows = max(split_idx - 1, 0)
+    expected_test_rows = max((enriched_rows - split_idx) - 1, 0)
+
+    assert X_train.shape == (expected_train_rows, 6)
+    assert y_train.shape == (expected_train_rows,)
+    assert X_test.shape == (expected_test_rows, 6)
+    assert y_test.shape == (expected_test_rows,)
     assert set(np.unique(np.concatenate([y_train, y_test]))) <= {0, 1}
     assert feature_cols == ["Close", "SMA_20", "SMA_50", "RSI", "MACD", "Signal_Line"]
+
+
+@pytest.mark.unit
+def test_prepare_for_classification_splits_returns_leakage_safe_boundaries():
+    df = _make_close_only_df(rows=220)
+    processor = StockDataProcessor("TEST")
+
+    (
+        X_train,
+        y_train,
+        X_val,
+        y_val,
+        X_test,
+        y_test,
+        feature_cols,
+        meta,
+    ) = processor.prepare_for_classification_splits(
+        df,
+        target_col="Close",
+        train_split=0.8,
+        val_split=0.1,
+        return_metadata=True,
+    )
+
+    assert X_train.shape[1] == len(feature_cols)
+    assert X_val.shape[1] == len(feature_cols)
+    assert X_test.shape[1] == len(feature_cols)
+    assert len(y_train) == len(meta["train_index"])
+    assert len(y_val) == len(meta["val_index"])
+    assert len(y_test) == len(meta["test_index"])
+
+    # The training split should end before validation starts (no boundary leakage labels).
+    assert meta["train_index"].max() < meta["val_index"].min()
+    assert meta["val_index"].max() < meta["test_index"].min()
 
 
 @pytest.mark.unit

@@ -1,22 +1,31 @@
 from abc import ABC, abstractmethod
-import pandas as pd
-import numpy as np
 
 class StockPredictor(ABC):
     """Abstract base class for all stock prediction models."""
 
     @abstractmethod
-    def train(self, X_train, y_train, X_test, y_test, **kwargs):
+    def train(
+        self,
+        X_train,
+        y_train,
+        *,
+        X_val=None,
+        y_val=None,
+        X_test=None,
+        y_test=None,
+        **kwargs
+    ):
         """
         Train the model.
         
         Args:
             X_train, y_train: Training data
-            X_test, y_test: Validation/Test data
+            X_val, y_val: Validation data (optional)
+            X_test, y_test: Holdout test data (optional)
             **kwargs: Model-specific hyperparameters (epochs, etc.)
             
         Returns:
-            Validation metrics or history
+            Metrics or history
         """
         pass
 

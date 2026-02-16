@@ -24,12 +24,13 @@ class DummyModel:
 
 def make_monthly_data(start="2020-01-01", periods=17):
     dates = pd.date_range(start, periods=periods, freq="MS")
+    close = 100 + (np.arange(len(dates)) % 2)
     return pd.DataFrame(
         {
             "date": dates,
             "feature": np.arange(len(dates), dtype=float),
-            "target": np.arange(len(dates)) % 2,
-            "close": np.linspace(100.0, 100.0 + len(dates) - 1, len(dates)),
+            "target": (np.roll(close, -1) > close).astype(int),
+            "close": close.astype(float),
         }
     )
 
@@ -67,16 +68,20 @@ def test_get_splits_generates_sequential_folds():
 
 @pytest.mark.unit
 def test_validate_aggregates_metrics_and_signals(monkeypatch):
-    data = make_monthly_data(periods=17)
-    validator = WalkForwardValidator(train_years=1, val_months=1, test_months=2, step_months=12)
+    data = make_monthly_data(periods=19)
+    validator = WalkForwardValidator(train_years=1, val_months=2, test_months=2, step_months=12)
     splits = validator._get_splits(data)
     split = splits[0]
 
+    train_y = validation._build_direction_split(split["train"], price_col="close", feature_cols=["feature"])[1]
+    val_y = validation._build_direction_split(split["val"], price_col="close", feature_cols=["feature"])[1]
+    test_y = validation._build_direction_split(split["test"], price_col="close", feature_cols=["feature"])[1]
+
     model = DummyModel(
         [
-            split["train"]["target"].values,
-            split["val"]["target"].values,
-            split["test"]["target"].values,
+            train_y,
+            val_y,
+            test_y,
         ]
     )
 
@@ -94,7 +99,13 @@ def test_validate_aggregates_metrics_and_signals(monkeypatch):
     monkeypatch.setattr(validation, "calculate_strategy_returns", fake_strategy_returns)
     monkeypatch.setattr(validation, "calculate_metrics", fake_metrics)
 
-    results = validator.validate(model, data, feature_cols=["feature"], target_col="target")
+    results = validator.validate(
+        model,
+        data,
+        feature_cols=["feature"],
+        target_col="close",
+        price_col="close",
+    )
 
     assert model.trained is True
     assert len(results) == 1
@@ -108,9 +119,9 @@ def test_validate_aggregates_metrics_and_signals(monkeypatch):
     assert metrics["sharpe_ratio"] == pytest.approx(0.0)
 
     expected_signals = (
-        pd.Series(split["test"]["target"].values, index=split["test"].index)
-        .map({1: 1, 0: -1})
+        pd.Series(test_y, index=split["test"].index[:-1])
+        .map({1: 1, 0: 0})
         .tolist()
     )
     assert captured["signals"].tolist() == expected_signals
-    assert captured["prices"].tolist() == split["test"]["close"].tolist()
+    assert captured["prices"].tolist() == split["test"]["close"].iloc[:-1].tolist()

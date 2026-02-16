@@ -16,12 +16,13 @@ class DummyPredictor(StockPredictor):
         self.saved_path = None
         self.loaded_path = None
 
-    def train(self, X_train, y_train, X_test, y_test, **kwargs):
+    def train(self, X_train, y_train, *, X_val=None, y_val=None, X_test=None, y_test=None, **kwargs):
         self.trained = True
+        test_samples = len(X_test) if X_test is not None else 0
         return {
             "status": "ok",
             "train_samples": len(X_train),
-            "test_samples": len(X_test),
+            "test_samples": test_samples,
         }
 
     def predict(self, X_data):
@@ -61,7 +62,7 @@ def test_dummy_predictor_interface_behavior():
     X_test = np.array([[4.0], [5.0]])
     y_test = np.array([0.0, 1.0])
 
-    result = model.train(X_train, y_train, X_test, y_test)
+    result = model.train(X_train, y_train, X_test=X_test, y_test=y_test)
     assert model.trained is True
     assert result == {"status": "ok", "train_samples": 3, "test_samples": 2}
 

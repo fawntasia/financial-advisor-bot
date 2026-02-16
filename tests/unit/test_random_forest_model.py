@@ -51,14 +51,17 @@ def test_train_without_tuning_uses_model_fit_and_scores(monkeypatch):
     result = model.train(
         X_train,
         y_train,
-        X_test,
-        y_test,
+        X_test=X_test,
+        y_test=y_test,
         tune_hyperparameters=False,
     )
 
     assert model.is_tuned is False
     assert len(model.model.fit_calls) == 1
-    assert result == {"train_acc": 0.9, "test_acc": 0.8}
+    assert "train" in result
+    assert "test" in result
+    assert result["train"]["accuracy"] == pytest.approx(1 / 3)
+    assert result["test"]["accuracy"] == pytest.approx(0.5)
 
 
 @pytest.mark.unit
@@ -105,7 +108,13 @@ def test_train_with_tuning_uses_search_best_estimator(monkeypatch):
     X_test = np.array([[4.0, 5.0], [5.0, 6.0]])
     y_test = np.array([1, 0])
 
-    model.train(X_train, y_train, X_test, y_test, tune_hyperparameters=True)
+    model.train(
+        X_train,
+        y_train,
+        X_test=X_test,
+        y_test=y_test,
+        tune_hyperparameters=True,
+    )
 
     search = created["instance"]
     assert search.fit_called is True
@@ -123,5 +132,5 @@ def test_predict_and_predict_proba_use_underlying_model(monkeypatch):
     predictions = model.predict(X_data)
     probabilities = model.predict_proba(X_data)
 
-    assert predictions.tolist() == [0.0, 0.0]
+    assert predictions.tolist() == [1, 1]
     assert probabilities.shape == (2, 2)

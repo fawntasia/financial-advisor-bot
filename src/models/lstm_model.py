@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import LSTM, Dense, Input
@@ -37,15 +36,16 @@ class LSTMModel(StockPredictor):
         self,
         X_train,
         y_train,
-        X_test,
-        y_test,
+        *,
+        X_val=None,
+        y_val=None,
+        X_test=None,
+        y_test=None,
         epochs=50,
         batch_size=32,
         save_path=None,
         patience=5,
         verbose=1,
-        X_val=None,
-        y_val=None,
     ):
         """
         Train the model with Early Stopping and Checkpointing.
@@ -53,8 +53,10 @@ class LSTMModel(StockPredictor):
         Args:
             X_train: Training features (samples, seq_len, features)
             y_train: Training targets
-            X_test: Held-out test features
-            y_test: Held-out test targets
+            X_val: Validation features for early stopping (optional).
+            y_val: Validation targets for early stopping (optional).
+            X_test: Held-out test features (optional fallback validation).
+            y_test: Held-out test targets (optional fallback validation).
             epochs: Maximum number of epochs
             batch_size: Batch size
             save_path: Path to save the best model (optional)
@@ -68,6 +70,10 @@ class LSTMModel(StockPredictor):
         """
         if (X_val is None) != (y_val is None):
             raise ValueError("X_val and y_val must both be provided or both omitted.")
+        if (X_test is None) != (y_test is None):
+            raise ValueError("X_test and y_test must both be provided or both omitted.")
+        if X_val is None and X_test is None:
+            raise ValueError("Provide either validation data or test data for early stopping.")
 
         validation_X = X_val if X_val is not None else X_test
         validation_y = y_val if y_val is not None else y_test

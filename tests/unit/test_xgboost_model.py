@@ -66,11 +66,11 @@ def test_train_without_tuning_runs_fit_scores_and_importances(monkeypatch):
     result = model.train(
         X_train,
         y_train,
-        X_test,
-        y_test,
-        tune_hyperparameters=False,
         X_val=X_val,
         y_val=y_val,
+        X_test=X_test,
+        y_test=y_test,
+        tune_hyperparameters=False,
     )
 
     assert model.is_tuned is False
@@ -80,7 +80,12 @@ def test_train_without_tuning_runs_fit_scores_and_importances(monkeypatch):
     assert model.model.fit_calls[0][2]["eval_set"] == [(X_train, y_train), (X_val, y_val)]
     assert model.model.fit_calls[0][2]["verbose"] is False
     assert model.model._feature_importances_accessed is True
-    assert result == {"train_acc": 0.9, "test_acc": 0.8}
+    assert "train" in result
+    assert "validation" in result
+    assert "test" in result
+    assert result["train"]["accuracy"] == pytest.approx(1 / 3)
+    assert result["validation"]["accuracy"] == pytest.approx(1.0)
+    assert result["test"]["accuracy"] == pytest.approx(0.5)
 
 
 @pytest.mark.unit
@@ -106,7 +111,14 @@ def test_train_without_external_validation_uses_internal_split(monkeypatch):
     X_test = np.array([[5.0, 6.0], [6.0, 7.0]])
     y_test = np.array([1, 0])
 
-    model.train(X_train, y_train, X_test, y_test, tune_hyperparameters=False, validation_fraction=0.25)
+    model.train(
+        X_train,
+        y_train,
+        X_test=X_test,
+        y_test=y_test,
+        tune_hyperparameters=False,
+        validation_fraction=0.25,
+    )
 
     eval_set = model.model.fit_calls[0][2]["eval_set"]
     fit_X, fit_y = eval_set[0]

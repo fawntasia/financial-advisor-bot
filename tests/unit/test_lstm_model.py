@@ -154,8 +154,8 @@ def test_train_invokes_fit_with_callbacks_and_validation(monkeypatch, tmp_path):
     history = model.train(
         X_train,
         y_train,
-        X_test,
-        y_test,
+        X_test=X_test,
+        y_test=y_test,
         epochs=2,
         batch_size=8,
         save_path=str(save_path),
@@ -192,8 +192,8 @@ def test_train_uses_explicit_validation_set_when_provided(monkeypatch):
     model.train(
         X_train,
         y_train,
-        X_test,
-        y_test,
+        X_test=X_test,
+        y_test=y_test,
         epochs=1,
         batch_size=2,
         patience=1,

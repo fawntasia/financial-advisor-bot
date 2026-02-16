@@ -14,8 +14,9 @@ This document summarizes the architecture and data flow for the Financial Adviso
 2. **Feature/Indicators**: Technical indicators computed and stored for each ticker/date.
 3. **Sentiment**: FinBERT scores headlines and aggregates daily sentiment.
 4. **Modeling**:
-   - **LSTM** (`scripts/train_lstm.py`) trains from SQLite price history via DAL and saves local model artifacts.
-   - **RF/XGB** training scripts currently still fetch data via `StockDataProcessor`/yfinance.
+   - **LSTM** (`scripts/train_lstm.py`) trains from SQLite price history via DAL and saves model, scaler, and metadata artifacts.
+   - **RF/XGB** (`scripts/train_random_forest.py`, `scripts/train_xgboost.py`) also train from SQLite via DAL with leakage-safe train/validation/test splits.
+   - Classification training now tunes decision thresholds on validation data and reports richer classification metrics.
 5. **LLM Context**: DAL pulls latest price, indicators, sentiment, and predictions to build prompt context.
 6. **UI**: Streamlit displays dashboards and chat responses using the LLM context.
 
@@ -32,7 +33,11 @@ This document summarizes the architecture and data flow for the Financial Adviso
   - `lstm_wrapper.py`: Backward-compatible alias to `LSTMModel` (no separate PyTorch LSTM implementation).
   - `random_forest_model.py`: Classification model for direction.
   - `xgboost_model.py`: Gradient-boosted classifier with time-series splits.
-  - `baselines.py`, `evaluation.py`, `validation.py`, `comparison.py`: baselines, metrics, walk-forward validation, and selection.
+  - `validation.py`: Walk-forward validation for both classification models and LSTM regression.
+  - `classification_utils.py`: Classification metrics and decision-threshold tuning helpers.
+  - `trading_config.py`: Shared class-to-signal mapping (`1 -> long`, `0 -> flat`).
+  - `reproducibility.py`: Shared seed setup helpers for deterministic training runs.
+  - `baselines.py`, `evaluation.py`, `comparison.py`: baseline strategies, financial metrics, and model selection.
 - `models/`: Saved model artifacts produced by training scripts.
 
 ### NLP + Sentiment
@@ -79,23 +84,34 @@ This document summarizes the architecture and data flow for the Financial Adviso
 - `models/lstm_<all|ticker>_<timestamp>_scalers.joblib`: per-ticker feature/target scalers.
 - `models/lstm_<all|ticker>_<timestamp>_metadata.json`: run metadata (coverage, shapes, metrics, and paths).
 
+### RF/XGB Artifact Format
+- `scripts/train_random_forest.py`:
+  - `models/random_forest_<ticker>_<timestamp>.pkl`: model payload (classifier + threshold metadata).
+  - `models/random_forest_<ticker>_<timestamp>_metadata.json`: run metadata, split coverage, metrics, feature importances.
+- `scripts/train_xgboost.py`:
+  - `models/xgboost_<ticker>_<timestamp>.json`: native XGBoost model.
+  - `models/xgboost_<ticker>_<timestamp>.meta.json`: model-side metadata (name + threshold).
+  - `models/xgboost_<ticker>_<timestamp>_metadata.json`: run metadata, split coverage, metrics, feature importances.
+
 ## Operational Scripts (Selected)
 - `scripts/init_db.py`: Creates schema and seeds S&P 500 tickers.
 - `scripts/ingest_data.py`: Main ingestion workflow for prices + news.
 - `scripts/download_historical_data.py`, `scripts/fetch_news.py`: Data source fetchers.
 - `scripts/run_sentiment_analysis.py`: FinBERT scoring and aggregation.
 - `scripts/train_lstm.py`: DB-backed LSTM trainer (defaults to all tickers in `tickers` table).
-- `scripts/train_random_forest.py`, `scripts/train_xgboost.py`: Classifier training scripts.
+- `scripts/train_random_forest.py`, `scripts/train_xgboost.py`: DB-backed classifier training scripts with split-safe labels and run metadata.
+- `scripts/backtest_models.py`: Backtesting for RF (`.pkl`), XGB (`.json`), and LSTM (`.keras`/`.h5`) with unified signal mapping.
 - `scripts/run_baselines.py`, `scripts/compare_models.py`, `scripts/run_walkforward.py`: Evaluation and comparison workflows.
 
 ## Notes on Runtime Behavior
 - The Streamlit UI and LLM run locally with database-backed context.
-- External APIs are used by ingestion scripts and by some training scripts (RF/XGB). The LSTM training path is DB-backed.
+- External APIs are used by ingestion scripts; model training scripts are DB-backed.
 - Llama 3 requires a local GGUF model file in `models/llama3/` to enable full chat responses.
 - FinBERT model files are expected under `models/finbert/` for sentiment runs.
 
 ## Current Implementation Notes
-- Walk-forward validation currently supports RF/XGB only; `--model lstm` is not implemented in `scripts/run_walkforward.py`.
-- LSTM training is DB-backed and API-independent, but RF/XGB training scripts still use yfinance through `StockDataProcessor`.
-- LSTM and XGBoost training scripts now reserve a dedicated validation split for early stopping; held-out test sets are no longer reused as validation during training.
+- Walk-forward validation supports RF, XGB, and LSTM (`scripts/run_walkforward.py`).
+- Classification target generation is split-safe: train/validation/test targets are generated within each split to prevent boundary leakage.
+- RF/XGB use validation-driven threshold selection and report expanded metrics (accuracy, balanced accuracy, precision, recall, F1, ROC-AUC).
+- LSTM, RF, and XGB scripts expose seed controls and store richer run metadata for reproducibility.
 - Model artifacts are saved locally under `models/`; scripts do not automatically register LSTM outputs into `predictions`/`model_performance` tables.

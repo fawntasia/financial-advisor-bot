@@ -1,43 +1,53 @@
-import numpy as np
-import pandas as pd
-import xgboost as xgb
-from xgboost import XGBClassifier
-from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
-import joblib
+import json
 import os
+
+import numpy as np
+from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
+from xgboost import XGBClassifier
+
 from src.models.base_model import StockPredictor
+from src.models.classification_utils import (
+    compute_classification_metrics,
+    tune_decision_threshold,
+)
+
 
 class XGBoostModel(StockPredictor):
     """
-    XGBoost model for stock direction prediction (Classification).
-    Predicts UP (1) or DOWN (0).
+    XGBoost model for stock direction prediction (classification).
+    Predicts UP (1) or DOWN/FLAT (0).
     """
-    
-    def __init__(self, learning_rate=0.1, n_estimators=100, max_depth=3, random_state=42, use_gpu=False):
-        self.model_name = "XGBoost_v1"
-        
-        # Check for GPU availability if requested
-        tree_method = 'auto'
-        if use_gpu:
-            try:
-                # Simple check if CUDA is available via xgboost
-                # Note: XGBoost usually handles 'gpu_hist' or 'cuda' gracefully if available
-                tree_method = 'gpu_hist' 
-            except:
-                print("GPU not available or error configuring. Falling back to auto.")
-                tree_method = 'auto'
 
+    def __init__(
+        self,
+        learning_rate=0.1,
+        n_estimators=100,
+        max_depth=3,
+        random_state=42,
+        use_gpu=False,
+    ):
+        self.model_name = "XGBoost_v2"
+        self.random_state = random_state
+        self.use_gpu = use_gpu
+        self.tree_method = "gpu_hist" if use_gpu else "hist"
         self.model = XGBClassifier(
             learning_rate=learning_rate,
             n_estimators=n_estimators,
             max_depth=max_depth,
             random_state=random_state,
-            eval_metric='logloss',
-            tree_method=tree_method,
-            early_stopping_rounds=None  # Set during fit
+            eval_metric="logloss",
+            tree_method=self.tree_method,
+            early_stopping_rounds=None,
         )
         self.is_tuned = False
-        self.feature_names = None
+        self.decision_threshold = 0.5
+
+    @staticmethod
+    def _validate_no_nans(X, y, split_name: str):
+        if X is None or y is None:
+            return
+        if np.isnan(X).any() or np.isnan(y).any():
+            raise ValueError(f"{split_name} data contains NaNs. Please clean data before training.")
 
     @staticmethod
     def _split_train_validation(X_train, y_train, validation_fraction: float):
@@ -57,111 +67,161 @@ class XGBoostModel(StockPredictor):
         X_val = X_train[split_idx:]
         y_val = y_train[split_idx:]
         return X_fit, y_fit, X_val, y_val
-        
-    def train(self, X_train, y_train, X_test, y_test, tune_hyperparameters=True, **kwargs):
+
+    def _new_estimator(self, **params):
+        return XGBClassifier(
+            random_state=self.random_state,
+            eval_metric="logloss",
+            tree_method=self.tree_method,
+            **params,
+        )
+
+    def _predict_labels(self, X_data, threshold=None):
+        if threshold is None:
+            threshold = self.decision_threshold
+        probabilities = self.model.predict_proba(X_data)[:, 1]
+        return (probabilities >= threshold).astype(int), probabilities
+
+    def _evaluate_split(self, X_data, y_data):
+        labels, probabilities = self._predict_labels(X_data)
+        return compute_classification_metrics(y_data, labels, probabilities)
+
+    def train(
+        self,
+        X_train,
+        y_train,
+        *,
+        X_val=None,
+        y_val=None,
+        X_test=None,
+        y_test=None,
+        tune_hyperparameters=True,
+        val_prices=None,
+        validation_fraction=0.1,
+        **kwargs,
+    ):
         """
         Train the XGBoost model.
-        Optionally performs hyperparameter tuning using RandomizedSearchCV.
-        Uses a dedicated validation set for early stopping.
-        Pass X_val/y_val to override the default internal validation split.
+        Supports hyperparameter tuning and validation-driven threshold tuning.
         """
-        # Reset early stopping rounds to avoid issues with search
         self.model.set_params(early_stopping_rounds=None)
-
-        X_val = kwargs.pop('X_val', None)
-        y_val = kwargs.pop('y_val', None)
-        validation_fraction = kwargs.pop('validation_fraction', 0.1)
+        self._validate_no_nans(X_train, y_train, "Training")
+        self._validate_no_nans(X_val, y_val, "Validation")
+        self._validate_no_nans(X_test, y_test, "Test")
 
         if (X_val is None) != (y_val is None):
             raise ValueError("X_val and y_val must both be provided or both omitted.")
-        
-        # Ensure no NaNs
-        if np.isnan(X_train).any() or np.isnan(y_train).any():
-            raise ValueError("Training data contains NaNs. Please clean data before training.")
 
         if X_val is None:
             X_fit, y_fit, X_val, y_val = self._split_train_validation(
                 X_train,
                 y_train,
-                validation_fraction=validation_fraction
+                validation_fraction=validation_fraction,
             )
             print(f"Using internal validation split: train={len(X_fit)}, val={len(X_val)}")
         else:
             X_fit, y_fit = X_train, y_train
-            print(f"Using external validation set: train={len(X_fit)}, val={len(X_val)}")
-            
+            print(f"Using external validation split: train={len(X_fit)}, val={len(X_val)}")
+
         if tune_hyperparameters:
             print("Tuning hyperparameters...")
             param_dist = {
-                'learning_rate': [0.01, 0.05, 0.1, 0.2],
-                'n_estimators': [50, 100, 200, 300],
-                'max_depth': [3, 5, 7, 10],
-                'subsample': [0.6, 0.8, 1.0],
-                'colsample_bytree': [0.6, 0.8, 1.0]
+                "learning_rate": [0.01, 0.03, 0.05, 0.1, 0.2],
+                "n_estimators": [100, 200, 300, 500],
+                "max_depth": [3, 5, 7, 10],
+                "min_child_weight": [1, 3, 5, 7],
+                "gamma": [0.0, 0.1, 0.3, 0.5],
+                "subsample": [0.6, 0.8, 1.0],
+                "colsample_bytree": [0.6, 0.8, 1.0],
+                "reg_alpha": [0.0, 0.01, 0.1, 1.0],
+                "reg_lambda": [1.0, 2.0, 5.0, 10.0],
+                "scale_pos_weight": [1.0, 1.5, 2.0],
             }
-            
-            tscv = TimeSeriesSplit(n_splits=3)
-            
+
+            max_possible_splits = len(X_fit) - 1
+            n_splits = max(2, min(5, len(X_fit) // 50))
+            n_splits = min(n_splits, max_possible_splits)
+            if n_splits < 2:
+                raise ValueError("Not enough training rows for TimeSeriesSplit hyperparameter tuning.")
+            tscv = TimeSeriesSplit(n_splits=n_splits)
             search = RandomizedSearchCV(
-                estimator=self.model,
+                estimator=self._new_estimator(),
                 param_distributions=param_dist,
-                n_iter=15,
+                n_iter=25,
                 cv=tscv,
                 n_jobs=-1,
                 verbose=1,
-                random_state=42,
-                scoring='accuracy'
+                random_state=self.random_state,
+                scoring="balanced_accuracy",
             )
-            
-            # Note: We don't use early stopping inside CV to keep it simple, 
-            # as it requires passing eval sets for each fold.
+
             search.fit(X_fit, y_fit)
-            
-            # Update model with best params but create a fresh instance to retrain with early stopping
             best_params = search.best_params_
             print(f"Best parameters: {best_params}")
-            print(f"Best CV score: {search.best_score_:.4f}")
-            
-            self.model = XGBClassifier(
-                **best_params,
-                random_state=42,
-                eval_metric='logloss'
-            )
+            print(f"Best CV balanced accuracy: {search.best_score_:.4f}")
+            self.model = self._new_estimator(**best_params)
             self.is_tuned = True
         else:
-             # Ensure early stopping is NOT set here
-             self.model.set_params(early_stopping_rounds=None)
+            self.model.set_params(early_stopping_rounds=None)
 
-        # Train final model with early stopping using a dedicated validation set.
         print("Training final model with early stopping...")
         self.model.set_params(early_stopping_rounds=10)
         self.model.fit(
-            X_fit, y_fit,
+            X_fit,
+            y_fit,
             eval_set=[(X_fit, y_fit), (X_val, y_val)],
-            verbose=False
+            verbose=False,
         )
-            
-        # Evaluate on train/validation/test sets
-        train_score = self.model.score(X_fit, y_fit)
-        val_score = self.model.score(X_val, y_val)
-        test_score = self.model.score(X_test, y_test)
-        print(f"Train Accuracy: {train_score:.4f}")
-        print(f"Validation Accuracy: {val_score:.4f}")
-        print(f"Test Accuracy: {test_score:.4f}")
-        
-        # Log feature importance
-        if hasattr(self.model, 'feature_importances_'):
-            importances = self.model.feature_importances_
-            print("Feature Importances:", importances)
-            
-        return {'train_acc': train_score, 'test_acc': test_score}
+
+        metrics = {"decision_threshold": self.decision_threshold}
+        if len(X_val) > 0:
+            val_prob = self.model.predict_proba(X_val)[:, 1]
+            best_threshold, objective = tune_decision_threshold(
+                y_true=y_val,
+                y_prob=val_prob,
+                prices=val_prices,
+            )
+            self.decision_threshold = best_threshold
+            metrics["threshold_objective"] = objective
+            metrics["decision_threshold"] = self.decision_threshold
+            print(f"Selected threshold: {self.decision_threshold:.3f} ({objective})")
+
+        train_metrics = self._evaluate_split(X_fit, y_fit)
+        val_metrics = self._evaluate_split(X_val, y_val)
+        metrics["train"] = train_metrics
+        metrics["validation"] = val_metrics
+        print(
+            f"Train metrics: acc={train_metrics['accuracy']:.4f}, "
+            f"bal_acc={train_metrics['balanced_accuracy']:.4f}, "
+            f"f1={train_metrics['f1']:.4f}, roc_auc={train_metrics['roc_auc']:.4f}"
+        )
+        print(
+            f"Validation metrics: acc={val_metrics['accuracy']:.4f}, "
+            f"bal_acc={val_metrics['balanced_accuracy']:.4f}, "
+            f"f1={val_metrics['f1']:.4f}, roc_auc={val_metrics['roc_auc']:.4f}"
+        )
+
+        if X_test is not None and y_test is not None and len(X_test) > 0:
+            test_metrics = self._evaluate_split(X_test, y_test)
+            metrics["test"] = test_metrics
+            print(
+                f"Test metrics: acc={test_metrics['accuracy']:.4f}, "
+                f"bal_acc={test_metrics['balanced_accuracy']:.4f}, "
+                f"f1={test_metrics['f1']:.4f}, roc_auc={test_metrics['roc_auc']:.4f}"
+            )
+
+        if hasattr(self.model, "feature_importances_"):
+            print("Feature Importances:", self.model.feature_importances_)
+
+        return metrics
 
     def predict(self, X_data):
-        """Make predictions."""
+        """Make thresholded class predictions."""
         if self.model is None:
             raise ValueError("Model has not been trained.")
-        return self.model.predict(X_data)
-        
+        labels, _ = self._predict_labels(X_data)
+        return labels
+
     def predict_proba(self, X_data):
         """Make probability predictions."""
         if self.model is None:
@@ -169,27 +229,40 @@ class XGBoostModel(StockPredictor):
         return self.model.predict_proba(X_data)
 
     def save(self, path: str):
-        """Save model to JSON (XGBoost native format)."""
+        """Save model to JSON plus sidecar metadata."""
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        # Check if path ends with .json, if not replace/append
-        if not path.endswith('.json'):
-             path = os.path.splitext(path)[0] + '.json'
-        
+        if not path.endswith(".json"):
+            path = os.path.splitext(path)[0] + ".json"
         self.model.save_model(path)
+
+        meta_path = os.path.splitext(path)[0] + ".meta.json"
+        payload = {
+            "model_name": self.model_name,
+            "decision_threshold": self.decision_threshold,
+        }
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
         print(f"Model saved to {path}")
 
     def load(self, path: str):
-        """Load model from JSON."""
+        """Load model from JSON with optional sidecar metadata."""
         if not os.path.exists(path):
-            # Try appending .json if not present
-            if os.path.exists(path + '.json'):
-                path = path + '.json'
+            if os.path.exists(path + ".json"):
+                path = path + ".json"
             else:
                 raise FileNotFoundError(f"Model file not found at {path}")
-        
-        # Re-initialize model to load into
-        self.model = XGBClassifier()
+
+        self.model = self._new_estimator()
         self.model.load_model(path)
+
+        meta_path = os.path.splitext(path)[0] + ".meta.json"
+        if os.path.exists(meta_path):
+            with open(meta_path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            self.model_name = payload.get("model_name", self.model_name)
+            self.decision_threshold = float(payload.get("decision_threshold", 0.5))
+        else:
+            self.decision_threshold = 0.5
         print(f"Model loaded from {path}")
 
     def get_name(self) -> str:

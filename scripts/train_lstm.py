@@ -16,6 +16,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.data.stock_data import StockDataProcessor
 from src.database.dal import DataAccessLayer
 from src.models.lstm_model import LSTMModel
+from src.models.reproducibility import set_global_seeds
 
 FEATURE_COLS = ["Close", "SMA_20", "SMA_50", "RSI", "MACD", "Signal_Line"]
 
@@ -144,11 +145,16 @@ def train_lstm(
     train_split: float = 0.8,
     val_split: float = 0.1,
     max_tickers: Optional[int] = None,
+    seed: int = 42,
 ) -> Tuple[LSTMModel, object]:
     """
     Train a single Keras LSTM using SQLite-backed price history.
     By default, all tickers in the DB are included.
     """
+    tf_seed_status = set_global_seeds(seed=seed, include_tensorflow=True)
+    if tf_seed_status:
+        print(f"Seed status: {tf_seed_status}")
+
     dal = DataAccessLayer()
     all_tickers = dal.get_all_tickers()
 
@@ -228,8 +234,8 @@ def train_lstm(
     history = model.train(
         X_train_fit,
         y_train_fit,
-        X_test,
-        y_test,
+        X_test=X_test,
+        y_test=y_test,
         epochs=epochs,
         batch_size=batch_size,
         save_path=save_path,
@@ -282,6 +288,7 @@ def train_lstm(
         "validation_shape": list(X_val.shape),
         "test_shape": list(X_test.shape),
         "validation_split": val_split,
+        "seed": seed,
         "global_test_mse_scaled": float(test_mse),
         "avg_per_ticker_rmse_price": avg_rmse,
     }
@@ -316,6 +323,7 @@ if __name__ == "__main__":
         default=None,
         help="Optional cap for quick test runs",
     )
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
 
     args = parser.parse_args()
     train_lstm(
@@ -327,4 +335,5 @@ if __name__ == "__main__":
         train_split=args.train_split,
         val_split=args.val_split,
         max_tickers=args.max_tickers,
+        seed=args.seed,
     )

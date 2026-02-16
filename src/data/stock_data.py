@@ -3,7 +3,7 @@
 import yfinance as yf
 import numpy as np
 import pandas as pd
-from typing import Optional
+from typing import Dict, List, Optional, Sequence, Tuple
 from sklearn.preprocessing import MinMaxScaler
 from datetime import datetime, timedelta
 
@@ -59,6 +59,47 @@ class StockDataProcessor:
         df.dropna(subset=indicator_cols, inplace=True)
         
         return df
+
+    @staticmethod
+    def _resolve_columns(df: pd.DataFrame, requested_cols: Sequence[str]) -> List[str]:
+        """Resolve requested column names case-insensitively against a DataFrame."""
+        col_lookup = {col.lower(): col for col in df.columns}
+        resolved = []
+        missing = []
+        for col in requested_cols:
+            match = col_lookup.get(col.lower())
+            if match is None:
+                missing.append(col)
+            else:
+                resolved.append(match)
+        if missing:
+            raise ValueError(f"Missing required columns: {missing}")
+        return resolved
+
+    @staticmethod
+    def _build_direction_split(
+        split_df: pd.DataFrame,
+        price_col: str,
+        feature_cols: Sequence[str],
+    ) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame]:
+        """
+        Build classification features/targets for one split only.
+        The last row is dropped because its target would reference the next split.
+        """
+        if len(split_df) < 2:
+            return (
+                np.empty((0, len(feature_cols))),
+                np.empty((0,), dtype=np.int64),
+                split_df.iloc[0:0].copy(),
+            )
+
+        labeled = split_df.copy()
+        labeled["Target"] = (labeled[price_col].shift(-1) > labeled[price_col]).astype(int)
+        labeled = labeled.iloc[:-1].copy()
+
+        X = labeled[list(feature_cols)].values
+        y = labeled["Target"].values
+        return X, y, labeled
 
     def prepare_for_lstm(self, df: pd.DataFrame, sequence_length: int = 60, target_col: str = 'Close'):
         """Prepare sequences for LSTM training and return scaled splits."""
@@ -119,34 +160,99 @@ class StockDataProcessor:
         scaled = self.scaler.transform(dataset)
         return np.reshape(scaled, (1, sequence_length, len(feature_cols)))
 
+    def prepare_for_classification_splits(
+        self,
+        df: pd.DataFrame,
+        target_col: str = "Close",
+        feature_cols: Optional[Sequence[str]] = None,
+        train_split: float = 0.8,
+        val_split: float = 0.1,
+        return_metadata: bool = False,
+    ):
+        """
+        Prepare leakage-safe train/val/test splits for next-day direction classification.
+
+        Split logic:
+        1. Build chronological feature splits first.
+        2. Create targets within each split.
+        3. Drop each split's last row so labels never depend on the next split.
+        """
+        if not 0 < train_split < 1:
+            raise ValueError("train_split must be between 0 and 1.")
+        if not 0 <= val_split < 1:
+            raise ValueError("val_split must be between 0 and 1.")
+
+        data = df.copy()
+        if "RSI" not in data.columns and "rsi" not in data.columns:
+            data = self.add_technical_indicators(data)
+
+        default_features = ["Close", "SMA_20", "SMA_50", "RSI", "MACD", "Signal_Line"]
+        resolved_features = self._resolve_columns(data, feature_cols or default_features)
+        resolved_target = self._resolve_columns(data, [target_col])[0]
+        self.feature_cols = resolved_features
+
+        if len(data) < 6:
+            raise ValueError("Not enough rows to create train/validation/test splits.")
+
+        split_idx = int(len(data) * train_split)
+        split_idx = max(2, min(split_idx, len(data) - 2))
+        train_region = data.iloc[:split_idx].copy()
+        test_region = data.iloc[split_idx:].copy()
+
+        if val_split > 0:
+            val_size = max(2, int(len(train_region) * val_split))
+            val_size = min(val_size, len(train_region) - 2)
+            fit_region = train_region.iloc[:-val_size].copy()
+            val_region = train_region.iloc[-val_size:].copy()
+        else:
+            fit_region = train_region.copy()
+            val_region = train_region.iloc[0:0].copy()
+
+        X_train, y_train, train_labeled = self._build_direction_split(
+            fit_region,
+            price_col=resolved_target,
+            feature_cols=resolved_features,
+        )
+        X_val, y_val, val_labeled = self._build_direction_split(
+            val_region,
+            price_col=resolved_target,
+            feature_cols=resolved_features,
+        )
+        X_test, y_test, test_labeled = self._build_direction_split(
+            test_region,
+            price_col=resolved_target,
+            feature_cols=resolved_features,
+        )
+
+        if len(X_train) == 0 or len(X_test) == 0:
+            raise ValueError("Not enough rows to create leakage-safe classification splits.")
+
+        if not return_metadata:
+            return X_train, y_train, X_val, y_val, X_test, y_test, resolved_features
+
+        metadata: Dict[str, object] = {
+            "train_index": train_labeled.index,
+            "val_index": val_labeled.index,
+            "test_index": test_labeled.index,
+            "train_prices": train_labeled[resolved_target].values,
+            "val_prices": val_labeled[resolved_target].values,
+            "test_prices": test_labeled[resolved_target].values,
+            "target_col": resolved_target,
+        }
+        return X_train, y_train, X_val, y_val, X_test, y_test, resolved_features, metadata
+
     def prepare_for_classification(self, df: pd.DataFrame, target_col: str = 'Close'):
-        """Prepare features/labels for a next-day direction classifier."""
-        df = df.copy()
-        
-        # Enrichment
-        if 'RSI' not in df.columns:
-            df = self.add_technical_indicators(df)
-            
-        # Create Target: 1 if Close(t+1) > Close(t), else 0
-        df['Target'] = (df['Close'].shift(-1) > df['Close']).astype(int)
-        
-        # Drop the last row because it has no future target
-        df = df.iloc[:-1]
-        
-        feature_cols = ['Close', 'SMA_20', 'SMA_50', 'RSI', 'MACD', 'Signal_Line']
-        self.feature_cols = feature_cols
-        
-        # Split Data (80/20) - Time Series split (no shuffling)
-        split_idx = int(len(df) * 0.8)
-        train_df = df.iloc[:split_idx]
-        test_df = df.iloc[split_idx:]
-        
-        X_train = train_df[feature_cols].values
-        y_train = train_df['Target'].values
-        
-        X_test = test_df[feature_cols].values
-        y_test = test_df['Target'].values
-        
+        """
+        Backward-compatible train/test preparation for direction classification.
+        Uses leakage-safe split logic and omits an explicit validation split.
+        """
+        X_train, y_train, _, _, X_test, y_test, feature_cols = self.prepare_for_classification_splits(
+            df=df,
+            target_col=target_col,
+            train_split=0.8,
+            val_split=0.0,
+            return_metadata=False,
+        )
         return X_train, y_train, X_test, y_test, feature_cols
 
 # Helper functions for backward compatibility or simple usage
