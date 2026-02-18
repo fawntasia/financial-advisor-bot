@@ -131,7 +131,11 @@ class ModelComparison:
         report += "The **Production Model** is selected based on the highest **Average Sharpe Ratio**, as it represents the best risk-adjusted performance.\n\n"
         
         report += "## Performance Summary\n\n"
-        report += df.to_markdown(index=False) + "\n\n"
+        try:
+            report += df.to_markdown(index=False) + "\n\n"
+        except ImportError:
+            # Fallback when optional dependency `tabulate` is not installed.
+            report += "```\n" + df.to_string(index=False) + "\n```\n\n"
         
         report += "## Production Model Selection\n\n"
         report += f"The selected production model is **{best_model['model']}** for **{best_model['ticker']}**.\n"

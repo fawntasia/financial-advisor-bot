@@ -3,19 +3,21 @@ import json
 import os
 import sys
 from datetime import datetime
+from typing import Dict
+
+import numpy as np
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.data.stock_data import StockDataProcessor
-from src.models.data_sources import load_market_data
+from src.models.classification_utils import compute_classification_metrics
+from src.models.global_classification_data import build_global_classification_dataset
 from src.models.io_utils import ensure_parent_dir, get_library_versions
 from src.models.random_forest_model import RandomForestModel
 from src.models.reproducibility import set_global_seeds
 
 
 def train_rf(
-    ticker: str,
     tune: bool = True,
     train_split: float = 0.8,
     val_split: float = 0.1,
@@ -27,28 +29,10 @@ def train_rf(
     end_date: str | None = None,
     years: int = 10,
 ):
-    ticker = ticker.upper()
-    print(f"Starting Random Forest training for {ticker}...")
+    print("Starting Random Forest global training...")
     set_global_seeds(seed=seed, include_tensorflow=False)
 
-    print(f"Loading market data from source={data_source}...")
-    market_df = load_market_data(
-        ticker=ticker,
-        source=data_source,
-        db_path=db_path,
-        start_date=start_date,
-        end_date=end_date,
-        years=years,
-    )
-    if market_df.empty:
-        raise ValueError(f"No price history available for {ticker} from source={data_source}.")
-
-    processor = StockDataProcessor(ticker)
-    enriched_df = processor.add_technical_indicators(market_df).dropna().copy()
-    if len(enriched_df) < 30:
-        raise ValueError("Not enough rows after indicator warm-up to train model.")
-
-    print("Preparing leakage-safe train/validation/test splits...")
+    print(f"Preparing pooled global dataset from source={data_source}...")
     (
         X_train,
         y_train,
@@ -58,12 +42,15 @@ def train_rf(
         y_test,
         feature_cols,
         split_meta,
-    ) = processor.prepare_for_classification_splits(
-        enriched_df,
-        target_col="Close",
+        test_tickers,
+    ) = _prepare_global_data(
         train_split=train_split,
         val_split=val_split,
-        return_metadata=True,
+        data_source=data_source,
+        db_path=db_path,
+        start_date=start_date,
+        end_date=end_date,
+        years=years,
     )
 
     print(f"Train shape: {X_train.shape}")
@@ -80,11 +67,10 @@ def train_rf(
         X_test=X_test,
         y_test=y_test,
         tune_hyperparameters=tune,
-        val_prices=split_meta.get("val_prices"),
+        val_prices=None,
     )
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_path = os.path.join(output_dir, f"random_forest_{ticker}_{timestamp}.pkl")
+    model_path = os.path.join(output_dir, "random_forest_global.pkl")
     model.save(model_path)
 
     feature_importances = {}
@@ -98,14 +84,12 @@ def train_rf(
     model_stem, _ = os.path.splitext(model_path)
     metadata_path = f"{model_stem}_metadata.json"
     manifest_path = f"{model_stem}.manifest.json"
-    train_idx = split_meta.get("train_index")
-    val_idx = split_meta.get("val_index")
-    test_idx = split_meta.get("test_index")
+    per_ticker_test = _per_ticker_metrics(model, X_test, y_test, test_tickers)
 
     metadata = {
         "trained_at": datetime.now().isoformat(),
+        "scope": "global",
         "seed": seed,
-        "ticker": ticker,
         "model_name": model.get_name(),
         "model_path": model_path,
         "feature_columns": list(feature_cols),
@@ -114,16 +98,10 @@ def train_rf(
         "train_shape": list(X_train.shape),
         "validation_shape": list(X_val.shape),
         "test_shape": list(X_test.shape),
-        "coverage": {
-            "train_start": str(train_idx.min()) if len(train_idx) else None,
-            "train_end": str(train_idx.max()) if len(train_idx) else None,
-            "val_start": str(val_idx.min()) if len(val_idx) else None,
-            "val_end": str(val_idx.max()) if len(val_idx) else None,
-            "test_start": str(test_idx.min()) if len(test_idx) else None,
-            "test_end": str(test_idx.max()) if len(test_idx) else None,
-        },
+        "data_coverage": split_meta,
         "decision_threshold": float(model.decision_threshold),
         "metrics": metrics,
+        "per_ticker_test_metrics": per_ticker_test,
         "feature_importances": feature_importances,
     }
     ensure_parent_dir(metadata_path)
@@ -135,6 +113,7 @@ def train_rf(
         "model_kind": "random_forest_classification",
         "model_path": model_path,
         "created_at": datetime.now().isoformat(),
+        "scope": "global",
         "seed": seed,
         "feature_columns": list(feature_cols),
         "data_source": {
@@ -143,9 +122,9 @@ def train_rf(
             "start_date": start_date,
             "end_date": end_date,
             "years": years,
-            "ticker": ticker,
+            "ticker": "ALL",
         },
-        "data_coverage": metadata["coverage"],
+        "data_coverage": split_meta,
         "split_config": {
             "train_split": train_split,
             "val_split": val_split,
@@ -164,9 +143,66 @@ def train_rf(
     print("\nTraining completed successfully.")
 
 
+def _prepare_global_data(
+    train_split: float,
+    val_split: float,
+    data_source: str,
+    db_path: str,
+    start_date: str | None,
+    end_date: str | None,
+    years: int,
+):
+    dataset = build_global_classification_dataset(
+        data_source=data_source,
+        db_path=db_path,
+        start_date=start_date,
+        end_date=end_date,
+        years=years,
+        train_split=train_split,
+        val_split=val_split,
+    )
+    return (
+        dataset["X_train"],
+        dataset["y_train"],
+        dataset["X_val"],
+        dataset["y_val"],
+        dataset["X_test"],
+        dataset["y_test"],
+        dataset["feature_cols"],
+        dataset["metadata"],
+        dataset["test_tickers"],
+    )
+
+
+def _per_ticker_metrics(model, X_test: np.ndarray, y_test: np.ndarray, test_tickers: np.ndarray) -> Dict[str, object]:
+    if len(X_test) == 0 or len(test_tickers) == 0:
+        return {"num_tickers": 0, "summary": {}, "by_ticker": {}}
+
+    pred = model.predict(X_test)
+    prob = model.predict_proba(X_test)[:, 1]
+
+    by_ticker: Dict[str, Dict[str, float]] = {}
+    for ticker in sorted(set(test_tickers.tolist())):
+        mask = test_tickers == ticker
+        ticker_metrics = compute_classification_metrics(y_test[mask], pred[mask], prob[mask])
+        by_ticker[ticker] = {k: float(v) for k, v in ticker_metrics.items()}
+
+    summary = {}
+    if by_ticker:
+        keys = list(next(iter(by_ticker.values())).keys())
+        for key in keys:
+            values = [m[key] for m in by_ticker.values() if not np.isnan(m[key])]
+            summary[key] = float(np.mean(values)) if values else float("nan")
+
+    return {
+        "num_tickers": len(by_ticker),
+        "summary": summary,
+        "by_ticker": by_ticker,
+    }
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train Random Forest model.")
-    parser.add_argument("--ticker", type=str, default="AAPL", help="Stock ticker")
+    parser = argparse.ArgumentParser(description="Train global Random Forest model across all available tickers.")
     parser.add_argument("--no-tune", action="store_true", help="Skip hyperparameter tuning")
     parser.add_argument("--train-split", type=float, default=0.8, help="Chronological train split")
     parser.add_argument(
@@ -191,7 +227,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     train_rf(
-        args.ticker,
         tune=not args.no_tune,
         train_split=args.train_split,
         val_split=args.val_split,

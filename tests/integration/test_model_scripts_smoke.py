@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import subprocess
 import sys
@@ -14,17 +15,19 @@ from src.database.dal import DataAccessLayer
 
 
 def _run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess:
-    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    env = dict(os.environ)
+    env["JOBLIB_MULTIPROCESSING"] = "0"
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env=env)
     assert result.returncode == 0, (
         f"Command failed: {' '.join(cmd)}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
     )
     return result
 
 
-def _seed_price_history(dal: DataAccessLayer, ticker: str, rows: int = 1200) -> None:
+def _seed_price_history(dal: DataAccessLayer, ticker: str, rows: int = 1200, phase: float = 0.0) -> None:
     dates = pd.date_range("2019-01-01", periods=rows, freq="D")
     trend = np.linspace(100.0, 160.0, rows)
-    seasonal = 2.0 * np.sin(np.arange(rows) / 15.0)
+    seasonal = 2.0 * np.sin((np.arange(rows) / 15.0) + phase)
     close = trend + seasonal
     records = []
     for i, dt in enumerate(dates):
@@ -58,6 +61,7 @@ def test_model_scripts_smoke_db_mode(tmp_path: Path):
     docs_dir = tmp_path / "docs"
     config_dir = tmp_path / "config"
     ticker = "TEST"
+    ticker_2 = "ALT"
 
     conn = sqlite3.connect(db_path)
     create_tables(conn)
@@ -65,14 +69,14 @@ def test_model_scripts_smoke_db_mode(tmp_path: Path):
 
     dal = DataAccessLayer(db_path=db_path)
     dal.insert_ticker(ticker, "Smoke Test Corp")
+    dal.insert_ticker(ticker_2, "Alt Smoke Test Corp")
     _seed_price_history(dal, ticker=ticker)
+    _seed_price_history(dal, ticker=ticker_2, phase=0.9)
 
     _run(
         [
             sys.executable,
             "scripts/train_random_forest.py",
-            "--ticker",
-            ticker,
             "--no-tune",
             "--output-dir",
             str(models_dir),
@@ -87,7 +91,8 @@ def test_model_scripts_smoke_db_mode(tmp_path: Path):
         ],
         cwd=project_root,
     )
-    rf_model = _find_single(list(models_dir.glob(f"random_forest_{ticker}_*.pkl")), "random forest model")
+    rf_model = models_dir / "random_forest_global.pkl"
+    assert rf_model.exists()
     rf_manifest = rf_model.with_suffix(".manifest.json")
     assert rf_manifest.exists()
 
@@ -95,8 +100,6 @@ def test_model_scripts_smoke_db_mode(tmp_path: Path):
         [
             sys.executable,
             "scripts/train_xgboost.py",
-            "--ticker",
-            ticker,
             "--no-tune",
             "--output-dir",
             str(models_dir),
@@ -111,14 +114,8 @@ def test_model_scripts_smoke_db_mode(tmp_path: Path):
         ],
         cwd=project_root,
     )
-    xgb_model_candidates = [
-        p
-        for p in models_dir.glob(f"xgboost_{ticker}_*.json")
-        if not p.name.endswith(".meta.json")
-        and not p.name.endswith("_metadata.json")
-        and not p.name.endswith(".manifest.json")
-    ]
-    xgb_model = _find_single(xgb_model_candidates, "xgboost model")
+    xgb_model = models_dir / "xgboost_global.json"
+    assert xgb_model.exists()
     xgb_manifest = xgb_model.with_suffix(".manifest.json")
     assert xgb_manifest.exists()
 

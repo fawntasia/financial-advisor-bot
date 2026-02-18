@@ -11,7 +11,8 @@ Document the current training setup for LSTM, Random Forest, and XGBoost models,
 - **Random Forest / XGBoost (`scripts/train_random_forest.py`, `scripts/train_xgboost.py`)**:
   - Read historical OHLCV from the same canonical loader.
   - DB-first by default (`--data-source db`), with optional yfinance mode for ad-hoc experiments.
-  - Use split-safe classification preparation (`prepare_for_classification_splits`) to avoid boundary leakage.
+  - Train one pooled global classifier per model type across all available tickers with price history.
+  - Use date-based split-safe global classification preparation to avoid boundary leakage.
 - **Walk-forward / Backtesting**:
   - `scripts/run_walkforward.py` and `scripts/backtest_models.py` now follow the same DB-first source contract.
   - SQLite path is explicit via `--db-path`.
@@ -30,7 +31,7 @@ Document the current training setup for LSTM, Random Forest, and XGBoost models,
 - Sentiment is not currently part of the LSTM feature tensor.
 
 ### RF/XGB Features
-- Directional classification features from `StockDataProcessor.prepare_for_classification_splits`.
+- Directional classification features from pooled ticker data prepared via `src/models/global_classification_data.py`.
 - Target: next-day direction (`UP=1`, `DOWN/FLAT=0`).
 - Trading signal policy (used consistently in validation/backtest):
   - Class `1` -> signal `1` (long)
@@ -49,12 +50,12 @@ All splits are chronological to reduce leakage.
 - Final model sees one aggregated dataset across all included tickers.
 
 ### RF/XGB Split Logic (Leakage-Safe)
-- Data is split into chronological train/test regions first.
-- Validation is split from the end of the train region (`--val-split`).
-- Labels are created separately within each split:
+- Data is pooled across tickers after indicator calculation.
+- Chronological train/validation/test segments are created by global calendar dates.
+- Labels are created separately within each split and ticker:
   - `target(t) = 1 if close(t+1) > close(t) else 0`
-  - Last row of each split is dropped, so labels never reference the next split.
-- This prevents train labels from depending on validation/test prices.
+- Last row of each split/ticker slice is dropped, so labels never reference the next split.
+- This prevents train labels from depending on validation/test prices and prevents cross-ticker boundary leakage.
 
 ## Model Training Details
 
@@ -82,12 +83,12 @@ All splits are chronological to reduce leakage.
 - **Estimator**: `RandomForestClassifier`.
 - **Tuning**: `RandomizedSearchCV` with `TimeSeriesSplit` and `balanced_accuracy` scoring.
 - **Class imbalance**: hyperparameter search includes `class_weight` options.
-- **Thresholding**: validation-based threshold tuning (Sharpe objective when validation prices are available; otherwise balanced accuracy).
+- **Thresholding**: validation-based threshold tuning uses balanced accuracy in global pooled mode.
 - **Feature Importance**: extracted post-training for interpretability.
 - **Artifacts**:
-  - `models/random_forest_<ticker>_<timestamp>.pkl`
-  - `models/random_forest_<ticker>_<timestamp>_metadata.json`
-  - `models/random_forest_<ticker>_<timestamp>.manifest.json`
+  - `models/random_forest_global.pkl`
+  - `models/random_forest_global_metadata.json`
+  - `models/random_forest_global.manifest.json`
 
 ### XGBoost
 - **Estimator**: `XGBClassifier`.
@@ -95,13 +96,13 @@ All splits are chronological to reduce leakage.
 - **Regularization/Tuning Search**:
   - `min_child_weight`, `gamma`, `reg_alpha`, `reg_lambda`
   - plus core tree/learning-rate/subsample parameters and `scale_pos_weight`
-- **Thresholding**: validation-based threshold tuning (Sharpe objective when validation prices are available; otherwise balanced accuracy).
+- **Thresholding**: validation-based threshold tuning uses balanced accuracy in global pooled mode.
 - **Feature Importance**: Recorded for comparison with Random Forest.
 - **Artifacts**:
-  - `models/xgboost_<ticker>_<timestamp>.json`
-  - `models/xgboost_<ticker>_<timestamp>.meta.json`
-  - `models/xgboost_<ticker>_<timestamp>_metadata.json`
-  - `models/xgboost_<ticker>_<timestamp>.manifest.json`
+  - `models/xgboost_global.json`
+  - `models/xgboost_global.meta.json`
+  - `models/xgboost_global_metadata.json`
+  - `models/xgboost_global.manifest.json`
 
 ## Evaluation Metrics
 - **LSTM training script**: scaled MSE + per-ticker RMSE summary.
@@ -154,11 +155,11 @@ Native model artifacts remain unchanged (`.pkl`, `.json`, `.keras`), but the man
 
 ## Reproducible Runbook
 ```bash
-# Random Forest (DB-first)
-python scripts/train_random_forest.py --ticker AAPL --no-tune --output-dir models --data-source db --db-path data/financial_advisor.db
+# Random Forest global model (DB-first)
+python scripts/train_random_forest.py --no-tune --output-dir models --data-source db --db-path data/financial_advisor.db
 
-# XGBoost (DB-first)
-python scripts/train_xgboost.py --ticker AAPL --no-tune --output-dir models --data-source db --db-path data/financial_advisor.db
+# XGBoost global model (DB-first)
+python scripts/train_xgboost.py --no-tune --output-dir models --data-source db --db-path data/financial_advisor.db
 
 # LSTM (DB-first)
 python scripts/train_lstm.py --ticker ALL --epochs 10 --batch-size 32 --output-dir models --data-source db --db-path data/financial_advisor.db
@@ -167,5 +168,8 @@ python scripts/train_lstm.py --ticker ALL --epochs 10 --batch-size 32 --output-d
 python scripts/run_walkforward.py --ticker AAPL --model rf --output-dir results --data-source db --db-path data/financial_advisor.db
 
 # Backtest
-python scripts/backtest_models.py --ticker AAPL --model models/random_forest_AAPL_<timestamp>.pkl --start-date 2023-01-01 --end-date 2023-12-31 --output-dir results --data-source db --db-path data/financial_advisor.db
+python scripts/backtest_models.py --ticker AAPL --model models/random_forest_global.pkl --start-date 2023-01-01 --end-date 2023-12-31 --output-dir results --data-source db --db-path data/financial_advisor.db
+
+# Cleanup legacy per-ticker classifier artifacts
+python scripts/cleanup_classifier_artifacts.py --models-dir models --apply
 ```

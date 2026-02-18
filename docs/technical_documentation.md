@@ -15,7 +15,7 @@ This document summarizes the architecture and data flow for the Financial Adviso
 3. **Sentiment**: FinBERT scores headlines and aggregates daily sentiment.
 4. **Modeling**:
    - **LSTM** (`scripts/train_lstm.py`) trains from SQLite price history via DAL and saves model, scaler, and metadata artifacts.
-   - **RF/XGB** (`scripts/train_random_forest.py`, `scripts/train_xgboost.py`) also train from SQLite via DAL with leakage-safe train/validation/test splits.
+   - **RF/XGB** (`scripts/train_random_forest.py`, `scripts/train_xgboost.py`) train global pooled classifiers from SQLite via DAL using leakage-safe date-based train/validation/test splits.
    - Classification training now tunes decision thresholds on validation data and reports richer classification metrics.
 5. **LLM Context**: DAL pulls latest price, indicators, sentiment, and predictions to build prompt context.
 6. **UI**: Streamlit displays dashboards and chat responses using the LLM context.
@@ -89,14 +89,14 @@ This document summarizes the architecture and data flow for the Financial Adviso
 
 ### RF/XGB Artifact Format
 - `scripts/train_random_forest.py`:
-  - `models/random_forest_<ticker>_<timestamp>.pkl`: model payload (classifier + threshold metadata).
-  - `models/random_forest_<ticker>_<timestamp>_metadata.json`: run metadata, split coverage, metrics, feature importances.
-  - `models/random_forest_<ticker>_<timestamp>.manifest.json`: canonical training manifest.
+  - `models/random_forest_global.pkl`: global model payload (classifier + threshold metadata).
+  - `models/random_forest_global_metadata.json`: run metadata, split coverage, metrics, feature importances.
+  - `models/random_forest_global.manifest.json`: canonical training manifest.
 - `scripts/train_xgboost.py`:
-  - `models/xgboost_<ticker>_<timestamp>.json`: native XGBoost model.
-  - `models/xgboost_<ticker>_<timestamp>.meta.json`: model-side metadata (name + threshold).
-  - `models/xgboost_<ticker>_<timestamp>_metadata.json`: run metadata, split coverage, metrics, feature importances.
-  - `models/xgboost_<ticker>_<timestamp>.manifest.json`: canonical training manifest.
+  - `models/xgboost_global.json`: global native XGBoost model.
+  - `models/xgboost_global.meta.json`: model-side metadata (name + threshold).
+  - `models/xgboost_global_metadata.json`: run metadata, split coverage, metrics, feature importances.
+  - `models/xgboost_global.manifest.json`: canonical training manifest.
 
 ### Manifest Schema
 Training manifests include:
@@ -118,7 +118,8 @@ Training manifests include:
 - `scripts/download_historical_data.py`, `scripts/fetch_news.py`: Data source fetchers.
 - `scripts/run_sentiment_analysis.py`: FinBERT scoring and aggregation.
 - `scripts/train_lstm.py`: DB-backed LSTM trainer (defaults to all tickers in `tickers` table).
-- `scripts/train_random_forest.py`, `scripts/train_xgboost.py`: DB-backed classifier training scripts with split-safe labels and run metadata.
+- `scripts/train_random_forest.py`, `scripts/train_xgboost.py`: DB-backed global classifier training scripts with split-safe labels and run metadata.
+- `scripts/cleanup_classifier_artifacts.py`: Removes legacy per-ticker RF/XGB artifacts while keeping global artifacts.
 - `scripts/backtest_models.py`: Backtesting for RF (`.pkl`), XGB (`.json`), and LSTM (`.keras`/`.h5`) with unified signal mapping.
 - `scripts/run_baselines.py`, `scripts/compare_models.py`, `scripts/run_walkforward.py`: Evaluation and comparison workflows.
 
@@ -141,7 +142,7 @@ Model scripts now use normalized flag names:
 - Walk-forward validation supports RF, XGB, and LSTM (`scripts/run_walkforward.py`).
 - Walk-forward now instantiates a fresh model per fold via `model_factory` to avoid cross-fold state carryover.
 - Classification target generation is split-safe: train/validation/test targets are generated within each split to prevent boundary leakage.
-- RF/XGB use validation-driven threshold selection and report expanded metrics (accuracy, balanced accuracy, precision, recall, F1, ROC-AUC).
+- RF/XGB global training uses validation-driven threshold selection based on balanced accuracy and reports expanded metrics (accuracy, balanced accuracy, precision, recall, F1, ROC-AUC).
 - LSTM, RF, and XGB scripts expose seed controls and store richer run metadata for reproducibility.
 - Model scripts are DB-first by default and only use live yfinance when explicitly requested.
 - Model artifacts are saved locally under `models/`; scripts do not automatically register LSTM outputs into `predictions`/`model_performance` tables.

@@ -107,11 +107,11 @@ python scripts/ingest_data.py
 All model scripts are SQLite-first by default and support optional live data via `--data-source yfinance`.
 
 ```bash
-# Random Forest
-python scripts/train_random_forest.py --ticker AAPL --output-dir models --data-source db --db-path data/financial_advisor.db
+# Random Forest (global pooled model across all available tickers)
+python scripts/train_random_forest.py --output-dir models --data-source db --db-path data/financial_advisor.db
 
-# XGBoost
-python scripts/train_xgboost.py --ticker AAPL --output-dir models --data-source db --db-path data/financial_advisor.db
+# XGBoost (global pooled model across all available tickers)
+python scripts/train_xgboost.py --output-dir models --data-source db --db-path data/financial_advisor.db
 
 # LSTM
 python scripts/train_lstm.py --ticker ALL --epochs 10 --batch-size 32 --output-dir models --data-source db --db-path data/financial_advisor.db
@@ -120,7 +120,7 @@ python scripts/train_lstm.py --ticker ALL --epochs 10 --batch-size 32 --output-d
 python scripts/run_walkforward.py --ticker AAPL --model rf --output-dir results --data-source db --db-path data/financial_advisor.db
 
 # Backtest
-python scripts/backtest_models.py --ticker AAPL --model models/random_forest_AAPL_<timestamp>.pkl --start-date 2023-01-01 --end-date 2023-12-31 --output-dir results --data-source db --db-path data/financial_advisor.db
+python scripts/backtest_models.py --ticker AAPL --model models/random_forest_global.pkl --start-date 2023-01-01 --end-date 2023-12-31 --output-dir results --data-source db --db-path data/financial_advisor.db
 ```
 
 Detailed model docs:
