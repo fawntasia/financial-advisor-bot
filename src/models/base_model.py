@@ -1,5 +1,10 @@
 from abc import ABC, abstractmethod
 
+
+class ModelNotFittedError(RuntimeError):
+    """Raised when inference is requested before fit/load."""
+
+
 class StockPredictor(ABC):
     """Abstract base class for all stock prediction models."""
 

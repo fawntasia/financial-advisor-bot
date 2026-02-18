@@ -1,15 +1,17 @@
 import json
 import os
+from typing import Any, Dict, Optional
 
 import numpy as np
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 from xgboost import XGBClassifier
 
-from src.models.base_model import StockPredictor
+from src.models.base_model import ModelNotFittedError, StockPredictor
 from src.models.classification_utils import (
     compute_classification_metrics,
     tune_decision_threshold,
 )
+from src.models.io_utils import ensure_parent_dir
 
 
 class XGBoostModel(StockPredictor):
@@ -20,11 +22,11 @@ class XGBoostModel(StockPredictor):
 
     def __init__(
         self,
-        learning_rate=0.1,
-        n_estimators=100,
-        max_depth=3,
-        random_state=42,
-        use_gpu=False,
+        learning_rate: float = 0.1,
+        n_estimators: int = 100,
+        max_depth: int = 3,
+        random_state: int = 42,
+        use_gpu: bool = False,
     ):
         self.model_name = "XGBoost_v2"
         self.random_state = random_state
@@ -40,6 +42,7 @@ class XGBoostModel(StockPredictor):
             early_stopping_rounds=None,
         )
         self.is_tuned = False
+        self._is_fitted = False
         self.decision_threshold = 0.5
 
     @staticmethod
@@ -76,7 +79,12 @@ class XGBoostModel(StockPredictor):
             **params,
         )
 
+    def _ensure_fitted(self) -> None:
+        if not self._is_fitted:
+            raise ModelNotFittedError("XGBoostModel must be trained or loaded before inference.")
+
     def _predict_labels(self, X_data, threshold=None):
+        self._ensure_fitted()
         if threshold is None:
             threshold = self.decision_threshold
         probabilities = self.model.predict_proba(X_data)[:, 1]
@@ -95,11 +103,11 @@ class XGBoostModel(StockPredictor):
         y_val=None,
         X_test=None,
         y_test=None,
-        tune_hyperparameters=True,
+        tune_hyperparameters: bool = True,
         val_prices=None,
-        validation_fraction=0.1,
+        validation_fraction: float = 0.1,
         **kwargs,
-    ):
+    ) -> Dict[str, Any]:
         """
         Train the XGBoost model.
         Supports hyperparameter tuning and validation-driven threshold tuning.
@@ -123,6 +131,8 @@ class XGBoostModel(StockPredictor):
             X_fit, y_fit = X_train, y_train
             print(f"Using external validation split: train={len(X_fit)}, val={len(X_val)}")
 
+        best_params = None
+        best_cv_score = None
         if tune_hyperparameters:
             print("Tuning hyperparameters...")
             param_dist = {
@@ -156,9 +166,10 @@ class XGBoostModel(StockPredictor):
             )
 
             search.fit(X_fit, y_fit)
-            best_params = search.best_params_
+            best_params = dict(search.best_params_)
+            best_cv_score = float(search.best_score_)
             print(f"Best parameters: {best_params}")
-            print(f"Best CV balanced accuracy: {search.best_score_:.4f}")
+            print(f"Best CV balanced accuracy: {best_cv_score:.4f}")
             self.model = self._new_estimator(**best_params)
             self.is_tuned = True
         else:
@@ -172,24 +183,21 @@ class XGBoostModel(StockPredictor):
             eval_set=[(X_fit, y_fit), (X_val, y_val)],
             verbose=False,
         )
+        self._is_fitted = True
 
-        metrics = {"decision_threshold": self.decision_threshold}
+        threshold_objective = None
         if len(X_val) > 0:
             val_prob = self.model.predict_proba(X_val)[:, 1]
-            best_threshold, objective = tune_decision_threshold(
+            best_threshold, threshold_objective = tune_decision_threshold(
                 y_true=y_val,
                 y_prob=val_prob,
                 prices=val_prices,
             )
             self.decision_threshold = best_threshold
-            metrics["threshold_objective"] = objective
-            metrics["decision_threshold"] = self.decision_threshold
-            print(f"Selected threshold: {self.decision_threshold:.3f} ({objective})")
+            print(f"Selected threshold: {self.decision_threshold:.3f} ({threshold_objective})")
 
         train_metrics = self._evaluate_split(X_fit, y_fit)
         val_metrics = self._evaluate_split(X_val, y_val)
-        metrics["train"] = train_metrics
-        metrics["validation"] = val_metrics
         print(
             f"Train metrics: acc={train_metrics['accuracy']:.4f}, "
             f"bal_acc={train_metrics['balanced_accuracy']:.4f}, "
@@ -201,9 +209,9 @@ class XGBoostModel(StockPredictor):
             f"f1={val_metrics['f1']:.4f}, roc_auc={val_metrics['roc_auc']:.4f}"
         )
 
+        test_metrics = None
         if X_test is not None and y_test is not None and len(X_test) > 0:
             test_metrics = self._evaluate_split(X_test, y_test)
-            metrics["test"] = test_metrics
             print(
                 f"Test metrics: acc={test_metrics['accuracy']:.4f}, "
                 f"bal_acc={test_metrics['balanced_accuracy']:.4f}, "
@@ -213,26 +221,40 @@ class XGBoostModel(StockPredictor):
         if hasattr(self.model, "feature_importances_"):
             print("Feature Importances:", self.model.feature_importances_)
 
-        return metrics
+        metadata = {
+            "model_name": self.model_name,
+            "is_tuned": self.is_tuned,
+            "best_params": best_params,
+            "best_cv_balanced_accuracy": best_cv_score,
+            "threshold_objective": threshold_objective,
+            "train_rows": int(len(X_fit)),
+            "validation_rows": int(len(X_val)),
+            "test_rows": int(len(X_test)) if X_test is not None else 0,
+        }
+        return {
+            "train": train_metrics,
+            "validation": val_metrics,
+            "test": test_metrics,
+            "decision_threshold": float(self.decision_threshold),
+            "metadata": metadata,
+        }
 
     def predict(self, X_data):
         """Make thresholded class predictions."""
-        if self.model is None:
-            raise ValueError("Model has not been trained.")
         labels, _ = self._predict_labels(X_data)
         return labels
 
     def predict_proba(self, X_data):
         """Make probability predictions."""
-        if self.model is None:
-            raise ValueError("Model has not been trained.")
+        self._ensure_fitted()
         return self.model.predict_proba(X_data)
 
     def save(self, path: str):
         """Save model to JSON plus sidecar metadata."""
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        self._ensure_fitted()
         if not path.endswith(".json"):
             path = os.path.splitext(path)[0] + ".json"
+        ensure_parent_dir(path)
         self.model.save_model(path)
 
         meta_path = os.path.splitext(path)[0] + ".meta.json"
@@ -240,6 +262,7 @@ class XGBoostModel(StockPredictor):
             "model_name": self.model_name,
             "decision_threshold": self.decision_threshold,
         }
+        ensure_parent_dir(meta_path)
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
         print(f"Model saved to {path}")
@@ -263,6 +286,7 @@ class XGBoostModel(StockPredictor):
             self.decision_threshold = float(payload.get("decision_threshold", 0.5))
         else:
             self.decision_threshold = 0.5
+        self._is_fitted = True
         print(f"Model loaded from {path}")
 
     def get_name(self) -> str:

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -154,7 +154,6 @@ class WalkForwardValidator:
         try:
             return model.train(X_train, y_train, X_val=X_val, y_val=y_val)
         except TypeError:
-            # Backward compatibility for legacy tests or external models.
             return model.train(X_train, y_train, X_val, y_val)
 
     @staticmethod
@@ -178,7 +177,7 @@ class WalkForwardValidator:
         split: Dict[str, Any],
         feature_cols: Sequence[str],
         price_col: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
         train_df = split["train"]
         val_df = split["val"]
         test_df = split["test"]
@@ -188,8 +187,9 @@ class WalkForwardValidator:
         X_test, y_test, test_prices = _build_direction_split(test_df, price_col=price_col, feature_cols=feature_cols)
 
         if min(len(X_train), len(X_val), len(X_test)) == 0:
-            logger.warning("Skipping split due to insufficient rows after split-safe targeting.")
-            return None
+            reason = "insufficient_rows_after_split_safe_targeting"
+            logger.warning("Skipping split: %s", reason)
+            return None, reason
 
         self._call_model_train(model, X_train, y_train, X_val, y_val)
 
@@ -219,31 +219,34 @@ class WalkForwardValidator:
         strategy_returns = calculate_strategy_returns(test_signals, pd.Series(test_prices, index=test_df.index[:-1]))
         financial_metrics = calculate_metrics(strategy_returns)
 
-        return {
-            "train_accuracy": train_cls["accuracy"],
-            "val_accuracy": val_cls["accuracy"],
-            "test_accuracy": test_cls["accuracy"],
-            "train_balanced_accuracy": train_cls["balanced_accuracy"],
-            "val_balanced_accuracy": val_cls["balanced_accuracy"],
-            "test_balanced_accuracy": test_cls["balanced_accuracy"],
-            "train_precision": train_cls["precision"],
-            "val_precision": val_cls["precision"],
-            "test_precision": test_cls["precision"],
-            "train_recall": train_cls["recall"],
-            "val_recall": val_cls["recall"],
-            "test_recall": test_cls["recall"],
-            "train_f1": train_cls["f1"],
-            "val_f1": val_cls["f1"],
-            "test_f1": test_cls["f1"],
-            "train_roc_auc": train_cls["roc_auc"],
-            "val_roc_auc": val_cls["roc_auc"],
-            "test_roc_auc": test_cls["roc_auc"],
-            "train_rmse": train_rmse,
-            "val_rmse": val_rmse,
-            "test_rmse": test_rmse,
-            "overfitting_ratio": overfitting_ratio,
-            **financial_metrics,
-        }
+        return (
+            {
+                "train_accuracy": train_cls["accuracy"],
+                "val_accuracy": val_cls["accuracy"],
+                "test_accuracy": test_cls["accuracy"],
+                "train_balanced_accuracy": train_cls["balanced_accuracy"],
+                "val_balanced_accuracy": val_cls["balanced_accuracy"],
+                "test_balanced_accuracy": test_cls["balanced_accuracy"],
+                "train_precision": train_cls["precision"],
+                "val_precision": val_cls["precision"],
+                "test_precision": test_cls["precision"],
+                "train_recall": train_cls["recall"],
+                "val_recall": val_cls["recall"],
+                "test_recall": test_cls["recall"],
+                "train_f1": train_cls["f1"],
+                "val_f1": val_cls["f1"],
+                "test_f1": test_cls["f1"],
+                "train_roc_auc": train_cls["roc_auc"],
+                "val_roc_auc": val_cls["roc_auc"],
+                "test_roc_auc": test_cls["roc_auc"],
+                "train_rmse": train_rmse,
+                "val_rmse": val_rmse,
+                "test_rmse": test_rmse,
+                "overfitting_ratio": overfitting_ratio,
+                **financial_metrics,
+            },
+            None,
+        )
 
     def _validate_lstm_regression(
         self,
@@ -252,7 +255,7 @@ class WalkForwardValidator:
         feature_cols: Sequence[str],
         price_col: str,
         sequence_length: int,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
         train_df = split["train"]
         val_df = split["val"]
         test_df = split["test"]
@@ -309,8 +312,9 @@ class WalkForwardValidator:
         )
 
         if min(len(X_train), len(X_val), len(X_test)) == 0:
-            logger.warning("Skipping split due to insufficient LSTM sequence rows.")
-            return None
+            reason = "insufficient_lstm_sequence_rows"
+            logger.warning("Skipping split: %s", reason)
+            return None, reason
 
         model.train(
             X_train,
@@ -357,35 +361,38 @@ class WalkForwardValidator:
         strategy_returns = calculate_strategy_returns(test_signals, pd.Series(test_actual))
         financial_metrics = calculate_metrics(strategy_returns)
 
-        return {
-            "train_accuracy": train_cls["accuracy"],
-            "val_accuracy": val_cls["accuracy"],
-            "test_accuracy": test_cls["accuracy"],
-            "train_balanced_accuracy": train_cls["balanced_accuracy"],
-            "val_balanced_accuracy": val_cls["balanced_accuracy"],
-            "test_balanced_accuracy": test_cls["balanced_accuracy"],
-            "train_precision": train_cls["precision"],
-            "val_precision": val_cls["precision"],
-            "test_precision": test_cls["precision"],
-            "train_recall": train_cls["recall"],
-            "val_recall": val_cls["recall"],
-            "test_recall": test_cls["recall"],
-            "train_f1": train_cls["f1"],
-            "val_f1": val_cls["f1"],
-            "test_f1": test_cls["f1"],
-            "train_roc_auc": float("nan"),
-            "val_roc_auc": float("nan"),
-            "test_roc_auc": float("nan"),
-            "train_rmse": train_rmse,
-            "val_rmse": val_rmse,
-            "test_rmse": test_rmse,
-            "overfitting_ratio": overfitting_ratio,
-            **financial_metrics,
-        }
+        return (
+            {
+                "train_accuracy": train_cls["accuracy"],
+                "val_accuracy": val_cls["accuracy"],
+                "test_accuracy": test_cls["accuracy"],
+                "train_balanced_accuracy": train_cls["balanced_accuracy"],
+                "val_balanced_accuracy": val_cls["balanced_accuracy"],
+                "test_balanced_accuracy": test_cls["balanced_accuracy"],
+                "train_precision": train_cls["precision"],
+                "val_precision": val_cls["precision"],
+                "test_precision": test_cls["precision"],
+                "train_recall": train_cls["recall"],
+                "val_recall": val_cls["recall"],
+                "test_recall": test_cls["recall"],
+                "train_f1": train_cls["f1"],
+                "val_f1": val_cls["f1"],
+                "test_f1": test_cls["f1"],
+                "train_roc_auc": float("nan"),
+                "val_roc_auc": float("nan"),
+                "test_roc_auc": float("nan"),
+                "train_rmse": train_rmse,
+                "val_rmse": val_rmse,
+                "test_rmse": test_rmse,
+                "overfitting_ratio": overfitting_ratio,
+                **financial_metrics,
+            },
+            None,
+        )
 
     def validate(
         self,
-        model: StockPredictor,
+        model_factory: Callable[[], StockPredictor],
         data: pd.DataFrame,
         feature_cols: List[str],
         target_col: str,
@@ -397,7 +404,7 @@ class WalkForwardValidator:
         Run walk-forward validation.
 
         Args:
-            model: Model implementing StockPredictor.
+            model_factory: Callable returning a fresh model instance per fold.
             data: DataFrame containing at least date and feature columns.
             feature_cols: List of feature column names.
             target_col: For classification, target/price source. For LSTM, regression target column.
@@ -423,9 +430,10 @@ class WalkForwardValidator:
                 split["metadata"]["test_start"].date(),
                 split["metadata"]["test_end"].date(),
             )
+            model = model_factory()
 
             if task_type == "lstm_regression":
-                metrics = self._validate_lstm_regression(
+                metrics, skipped_reason = self._validate_lstm_regression(
                     model=model,
                     split=split,
                     feature_cols=resolved_feature_cols,
@@ -433,21 +441,27 @@ class WalkForwardValidator:
                     sequence_length=sequence_length,
                 )
             else:
-                metrics = self._validate_classification(
+                metrics, skipped_reason = self._validate_classification(
                     model=model,
                     split=split,
                     feature_cols=resolved_feature_cols,
                     price_col=resolved_price_col,
                 )
 
-            if metrics is None:
-                continue
+            fold_metadata = {
+                **split["metadata"],
+                "fold_id": i + 1,
+                "train_rows": int(len(split["train"])),
+                "val_rows": int(len(split["val"])),
+                "test_rows": int(len(split["test"])),
+                "skipped_reason": skipped_reason,
+            }
 
             results.append(
                 {
                     "step": i + 1,
-                    "metadata": split["metadata"],
-                    "metrics": metrics,
+                    "metadata": fold_metadata,
+                    "metrics": metrics or {},
                 }
             )
 

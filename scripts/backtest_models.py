@@ -11,8 +11,8 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.data.stock_data import StockDataProcessor
+from src.models.data_sources import load_market_data
 from src.models.evaluation import calculate_metrics
-from src.models.lstm_model import LSTMModel
 from src.models.random_forest_model import RandomForestModel
 from src.models.trading_config import predictions_to_signals
 from src.models.xgboost_model import XGBoostModel
@@ -31,6 +31,8 @@ def _load_model(model_path: str):
         model.load(model_path)
         return model, "classification"
     if ext in {".keras", ".h5"}:
+        from src.models.lstm_model import LSTMModel
+
         model = LSTMModel()
         model.load(model_path)
         return model, "lstm"
@@ -43,7 +45,7 @@ def _infer_lstm_scaler_path(model_path: str) -> str:
 
 
 def _lstm_predictions(
-    model: LSTMModel,
+    model,
     backtest_df: pd.DataFrame,
     ticker: str,
     scaler_path: str,
@@ -93,21 +95,35 @@ def run_backtest(
     end_date="2023-12-31",
     transaction_cost=0.001,
     scaler_path: Optional[str] = None,
+    data_source: str = "db",
+    db_path: str = "data/financial_advisor.db",
+    output_dir: str = "results",
+    years: int = 10,
 ):
     """
     Run backtest for a given ticker and model.
     Supports RandomForest (.pkl), XGBoost (.json), and LSTM (.keras/.h5).
     """
     ticker = ticker.upper()
-    print(f"Running backtest for {ticker} using model {model_path}...")
+    print(f"Running backtest for {ticker} using model {model_path} (source={data_source})...")
 
     processor = StockDataProcessor(ticker)
-    df = processor.fetch_data(years=10)
+    df = load_market_data(
+        ticker=ticker,
+        source=data_source,
+        db_path=db_path,
+        start_date=start_date,
+        end_date=end_date,
+        years=years,
+    )
+    if df.empty:
+        print(f"No data found for {ticker} in range {start_date} to {end_date}")
+        return
     df = processor.add_technical_indicators(df)
 
     backtest_df = df[(df.index >= start_date) & (df.index <= end_date)].copy()
     if backtest_df.empty:
-        print(f"No data found for {ticker} in range {start_date} to {end_date}")
+        print(f"No indicator-ready data found for {ticker} in range {start_date} to {end_date}")
         return
 
     model, model_kind = _load_model(model_path)
@@ -158,9 +174,8 @@ def run_backtest(
         else:
             print(f"{key}: {value:.2%}")
 
-    results_dir = "results"
-    os.makedirs(results_dir, exist_ok=True)
-    csv_path = os.path.join(results_dir, f"backtest_{ticker}_{start_date[:4]}.csv")
+    os.makedirs(output_dir, exist_ok=True)
+    csv_path = os.path.join(output_dir, f"backtest_{ticker}_{start_date[:4]}.csv")
     aligned_df[
         [
             "Close",
@@ -181,15 +196,36 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run model backtesting.")
     parser.add_argument("--ticker", type=str, default="AAPL", help="Stock ticker symbol")
     parser.add_argument("--model", type=str, required=True, help="Path to trained model artifact")
-    parser.add_argument("--start", type=str, default="2023-01-01", help="Start date (YYYY-MM-DD)")
-    parser.add_argument("--end", type=str, default="2023-12-31", help="End date (YYYY-MM-DD)")
-    parser.add_argument("--cost", type=float, default=0.001, help="Transaction cost (0.001 = 0.1%)")
+    parser.add_argument("--start-date", type=str, default="2023-01-01", help="Start date (YYYY-MM-DD)")
+    parser.add_argument("--end-date", type=str, default="2023-12-31", help="End date (YYYY-MM-DD)")
+    parser.add_argument("--cost", type=float, default=0.001, help="Transaction cost (0.001 = 0.1%%)")
     parser.add_argument(
         "--scaler",
         type=str,
         default=None,
         help="Optional scaler path for LSTM models (defaults to <model_stem>_scalers.joblib)",
     )
+    parser.add_argument(
+        "--data-source",
+        type=str,
+        choices=["db", "yfinance"],
+        default="db",
+        help="Backtest data source",
+    )
+    parser.add_argument("--db-path", type=str, default="data/financial_advisor.db", help="SQLite DB path")
+    parser.add_argument("--output-dir", type=str, default="results", help="Output directory for backtest CSV")
+    parser.add_argument("--years", type=int, default=10, help="Fallback lookback years when start-date is omitted")
 
     args = parser.parse_args()
-    run_backtest(args.ticker, args.model, args.start, args.end, args.cost, scaler_path=args.scaler)
+    run_backtest(
+        ticker=args.ticker,
+        model_path=args.model,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        transaction_cost=args.cost,
+        scaler_path=args.scaler,
+        data_source=args.data_source,
+        db_path=args.db_path,
+        output_dir=args.output_dir,
+        years=args.years,
+    )

@@ -8,6 +8,7 @@ sys.path.insert(0, ".")
 import numpy as np
 import pytest
 
+from src.models.base_model import ModelNotFittedError
 from src.models import random_forest_model
 
 
@@ -127,6 +128,17 @@ def test_train_with_tuning_uses_search_best_estimator(monkeypatch):
 def test_predict_and_predict_proba_use_underlying_model(monkeypatch):
     monkeypatch.setattr(random_forest_model, "RandomForestClassifier", DummyClassifier)
     model = random_forest_model.RandomForestModel()
+
+    with pytest.raises(ModelNotFittedError):
+        model.predict(np.array([[1.0, 2.0]]))
+    with pytest.raises(ModelNotFittedError):
+        model.predict_proba(np.array([[1.0, 2.0]]))
+
+    model.train(
+        np.array([[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]]),
+        np.array([0, 1, 0]),
+        tune_hyperparameters=False,
+    )
 
     X_data = np.array([[1.0, 2.0], [3.0, 4.0]])
     predictions = model.predict(X_data)

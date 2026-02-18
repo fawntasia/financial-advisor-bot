@@ -8,6 +8,7 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.models.comparison import ModelComparison
+from src.models.io_utils import ensure_parent_dir
 
 def main():
     parser = argparse.ArgumentParser(description='Compare models and select production model')
@@ -37,7 +38,7 @@ def main():
     logger.info(f"Aggregated metrics for {len(df)} models.")
     
     # Save CSV
-    os.makedirs(os.path.dirname(args.output_csv), exist_ok=True)
+    ensure_parent_dir(args.output_csv)
     df.to_csv(args.output_csv, index=False)
     logger.info(f"Comparison summary saved to {args.output_csv}")
     
@@ -49,7 +50,7 @@ def main():
     
     # Generate report
     report = comparison.generate_report()
-    os.makedirs(os.path.dirname(args.output_report), exist_ok=True)
+    ensure_parent_dir(args.output_report)
     with open(args.output_report, 'w') as f:
         f.write(report)
     logger.info(f"Markdown report saved to {args.output_report}")

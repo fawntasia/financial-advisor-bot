@@ -35,6 +35,8 @@ This document summarizes the architecture and data flow for the Financial Adviso
   - `xgboost_model.py`: Gradient-boosted classifier with time-series splits.
   - `validation.py`: Walk-forward validation for both classification models and LSTM regression.
   - `classification_utils.py`: Classification metrics and decision-threshold tuning helpers.
+  - `data_sources.py`: Canonical DB/yfinance OHLCV loader used by model scripts.
+  - `io_utils.py`: Shared artifact IO helpers (safe parent directory creation + library versions).
   - `trading_config.py`: Shared class-to-signal mapping (`1 -> long`, `0 -> flat`).
   - `reproducibility.py`: Shared seed setup helpers for deterministic training runs.
   - `baselines.py`, `evaluation.py`, `comparison.py`: baseline strategies, financial metrics, and model selection.
@@ -83,15 +85,32 @@ This document summarizes the architecture and data flow for the Financial Adviso
 - `models/lstm_<all|ticker>_<timestamp>.keras`: trained Keras model.
 - `models/lstm_<all|ticker>_<timestamp>_scalers.joblib`: per-ticker feature/target scalers.
 - `models/lstm_<all|ticker>_<timestamp>_metadata.json`: run metadata (coverage, shapes, metrics, and paths).
+- `models/lstm_<all|ticker>_<timestamp>.manifest.json`: canonical training manifest.
 
 ### RF/XGB Artifact Format
 - `scripts/train_random_forest.py`:
   - `models/random_forest_<ticker>_<timestamp>.pkl`: model payload (classifier + threshold metadata).
   - `models/random_forest_<ticker>_<timestamp>_metadata.json`: run metadata, split coverage, metrics, feature importances.
+  - `models/random_forest_<ticker>_<timestamp>.manifest.json`: canonical training manifest.
 - `scripts/train_xgboost.py`:
   - `models/xgboost_<ticker>_<timestamp>.json`: native XGBoost model.
   - `models/xgboost_<ticker>_<timestamp>.meta.json`: model-side metadata (name + threshold).
   - `models/xgboost_<ticker>_<timestamp>_metadata.json`: run metadata, split coverage, metrics, feature importances.
+  - `models/xgboost_<ticker>_<timestamp>.manifest.json`: canonical training manifest.
+
+### Manifest Schema
+Training manifests include:
+- `schema_version`
+- `model_kind`
+- `model_path`
+- `created_at`
+- `seed`
+- `feature_columns`
+- `data_source`
+- `data_coverage`
+- `split_config`
+- `metrics`
+- `library_versions`
 
 ## Operational Scripts (Selected)
 - `scripts/init_db.py`: Creates schema and seeds S&P 500 tickers.
@@ -103,6 +122,15 @@ This document summarizes the architecture and data flow for the Financial Adviso
 - `scripts/backtest_models.py`: Backtesting for RF (`.pkl`), XGB (`.json`), and LSTM (`.keras`/`.h5`) with unified signal mapping.
 - `scripts/run_baselines.py`, `scripts/compare_models.py`, `scripts/run_walkforward.py`: Evaluation and comparison workflows.
 
+### CLI Standardization
+Model scripts now use normalized flag names:
+- `--output-dir`
+- `--start-date`
+- `--end-date`
+- `--seed`
+- `--data-source {db,yfinance}`
+- `--db-path`
+
 ## Notes on Runtime Behavior
 - The Streamlit UI and LLM run locally with database-backed context.
 - External APIs are used by ingestion scripts; model training scripts are DB-backed.
@@ -111,7 +139,9 @@ This document summarizes the architecture and data flow for the Financial Adviso
 
 ## Current Implementation Notes
 - Walk-forward validation supports RF, XGB, and LSTM (`scripts/run_walkforward.py`).
+- Walk-forward now instantiates a fresh model per fold via `model_factory` to avoid cross-fold state carryover.
 - Classification target generation is split-safe: train/validation/test targets are generated within each split to prevent boundary leakage.
 - RF/XGB use validation-driven threshold selection and report expanded metrics (accuracy, balanced accuracy, precision, recall, F1, ROC-AUC).
 - LSTM, RF, and XGB scripts expose seed controls and store richer run metadata for reproducibility.
+- Model scripts are DB-first by default and only use live yfinance when explicitly requested.
 - Model artifacts are saved locally under `models/`; scripts do not automatically register LSTM outputs into `predictions`/`model_performance` tables.

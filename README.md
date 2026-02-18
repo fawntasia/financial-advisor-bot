@@ -102,6 +102,31 @@ To fetch the latest stock data and news (incremental update or full history from
 python scripts/ingest_data.py
 ```
 
+### Model Training and Evaluation (DB-First)
+
+All model scripts are SQLite-first by default and support optional live data via `--data-source yfinance`.
+
+```bash
+# Random Forest
+python scripts/train_random_forest.py --ticker AAPL --output-dir models --data-source db --db-path data/financial_advisor.db
+
+# XGBoost
+python scripts/train_xgboost.py --ticker AAPL --output-dir models --data-source db --db-path data/financial_advisor.db
+
+# LSTM
+python scripts/train_lstm.py --ticker ALL --epochs 10 --batch-size 32 --output-dir models --data-source db --db-path data/financial_advisor.db
+
+# Walk-forward validation
+python scripts/run_walkforward.py --ticker AAPL --model rf --output-dir results --data-source db --db-path data/financial_advisor.db
+
+# Backtest
+python scripts/backtest_models.py --ticker AAPL --model models/random_forest_AAPL_<timestamp>.pkl --start-date 2023-01-01 --end-date 2023-12-31 --output-dir results --data-source db --db-path data/financial_advisor.db
+```
+
+Detailed model docs:
+- `docs/model_training.md`
+- `docs/technical_documentation.md`
+
 ## Safety Disclaimer
 
 This tool is for educational and research purposes only and is not financial advice. Past performance does not guarantee future results.

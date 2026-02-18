@@ -15,6 +15,13 @@ from src.models.evaluation import calculate_metrics, calculate_strategy_returns
 from src.models.trading_config import predictions_to_signals
 
 
+def _safe_balanced_accuracy(y_true_arr: np.ndarray, y_pred_arr: np.ndarray) -> float:
+    """Return balanced accuracy while avoiding single-class sklearn warnings."""
+    if np.unique(y_true_arr).size < 2:
+        return float(accuracy_score(y_true_arr, y_pred_arr))
+    return float(balanced_accuracy_score(y_true_arr, y_pred_arr))
+
+
 def compute_classification_metrics(
     y_true: Sequence[int],
     y_pred: Sequence[int],
@@ -31,12 +38,12 @@ def compute_classification_metrics(
     )
     metrics = {
         "accuracy": float(accuracy_score(y_true_arr, y_pred_arr)),
-        "balanced_accuracy": float(balanced_accuracy_score(y_true_arr, y_pred_arr)),
+        "balanced_accuracy": _safe_balanced_accuracy(y_true_arr, y_pred_arr),
         "precision": float(precision),
         "recall": float(recall),
         "f1": float(f1),
     }
-    if y_prob is not None:
+    if y_prob is not None and np.unique(y_true_arr).size >= 2:
         y_prob_arr = np.asarray(y_prob).reshape(-1)
         try:
             metrics["roc_auc"] = float(roc_auc_score(y_true_arr, y_prob_arr))
@@ -91,7 +98,7 @@ def tune_decision_threshold(
         if prices_arr is not None:
             score = _threshold_objective_from_prices(preds, prices_arr)
         else:
-            score = balanced_accuracy_score(y_true_arr, preds)
+            score = _safe_balanced_accuracy(y_true_arr, preds)
 
         if score > best_score:
             best_score = score

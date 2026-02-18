@@ -100,8 +100,8 @@ def test_validate_aggregates_metrics_and_signals(monkeypatch):
     monkeypatch.setattr(validation, "calculate_metrics", fake_metrics)
 
     results = validator.validate(
-        model,
-        data,
+        model_factory=lambda: model,
+        data=data,
         feature_cols=["feature"],
         target_col="close",
         price_col="close",
@@ -111,6 +111,8 @@ def test_validate_aggregates_metrics_and_signals(monkeypatch):
     assert len(results) == 1
 
     metrics = results[0]["metrics"]
+    assert results[0]["metadata"]["fold_id"] == 1
+    assert results[0]["metadata"]["skipped_reason"] is None
     assert metrics["train_accuracy"] == pytest.approx(1.0)
     assert metrics["val_accuracy"] == pytest.approx(1.0)
     assert metrics["test_accuracy"] == pytest.approx(1.0)

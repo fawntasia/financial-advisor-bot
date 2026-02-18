@@ -5,13 +5,16 @@ Document the current training setup for LSTM, Random Forest, and XGBoost models,
 
 ## Current Data Sources
 - **LSTM (`scripts/train_lstm.py`)**:
-  - Reads historical OHLCV from SQLite via `DataAccessLayer.get_stock_prices`.
+  - Reads historical OHLCV from the canonical loader (`src/models/data_sources.py`).
+  - Default source is SQLite (`--data-source db`), with optional live fetch (`--data-source yfinance`).
   - Default mode is `--ticker ALL`, meaning all tickers currently present in the `tickers` table are included.
-  - Does not call yfinance during training.
 - **Random Forest / XGBoost (`scripts/train_random_forest.py`, `scripts/train_xgboost.py`)**:
-  - Read historical OHLCV from SQLite via `DataAccessLayer.get_stock_prices`.
-  - Convert DB rows to market-format DataFrames before indicator generation.
+  - Read historical OHLCV from the same canonical loader.
+  - DB-first by default (`--data-source db`), with optional yfinance mode for ad-hoc experiments.
   - Use split-safe classification preparation (`prepare_for_classification_splits`) to avoid boundary leakage.
+- **Walk-forward / Backtesting**:
+  - `scripts/run_walkforward.py` and `scripts/backtest_models.py` now follow the same DB-first source contract.
+  - SQLite path is explicit via `--db-path`.
 
 ## Feature Set
 ### LSTM Features
@@ -42,7 +45,7 @@ All splits are chronological to reduce leakage.
 - Sequence construction:
   - Train sequences from ticker train partition.
   - Test sequences include train tail context (`sequence_length`) to preserve continuity.
-- A dedicated validation split is carved from aggregated training sequences (`--val_split`, default `0.1`) and used for early stopping, while the test split remains held out for final evaluation.
+- A dedicated validation split is carved from aggregated training sequences (`--val-split`, default `0.1`) and used for early stopping, while the test split remains held out for final evaluation.
 - Final model sees one aggregated dataset across all included tickers.
 
 ### RF/XGB Split Logic (Leakage-Safe)
@@ -60,16 +63,17 @@ All splits are chronological to reduce leakage.
 - **Loss**: Mean Squared Error.
 - **Optimizer**: Adam.
 - **Callbacks**: EarlyStopping and ModelCheckpoint.
-- **Input Window**: default 60 timesteps (`--sequence_length`).
+- **Input Window**: default 60 timesteps (`--sequence-length`).
 - **Scope**: single global model trained across all tickers by default.
 - **Reproducibility**: global seeds set via `src/models/reproducibility.py` (`--seed`).
 - **CLI**:
-  - `python scripts/train_lstm.py --ticker ALL --epochs 50 --batch_size 32`
-  - Optional: `--save_dir`, `--sequence_length`, `--train_split`, `--val_split`, `--max_tickers`, `--seed`
+  - `python scripts/train_lstm.py --ticker ALL --epochs 50 --batch-size 32 --output-dir models`
+  - Optional: `--sequence-length`, `--train-split`, `--val-split`, `--max-tickers`, `--seed`, `--data-source`, `--db-path`, `--start-date`, `--end-date`
 - **Artifacts**:
   - `models/lstm_<all|ticker>_<timestamp>.keras`
   - `models/lstm_<all|ticker>_<timestamp>_scalers.joblib`
   - `models/lstm_<all|ticker>_<timestamp>_metadata.json`
+  - `models/lstm_<all|ticker>_<timestamp>.manifest.json`
 - **Reported metrics**:
   - Global scaled test MSE.
   - Average per-ticker RMSE in original price space (via per-ticker target scaler).
@@ -83,6 +87,7 @@ All splits are chronological to reduce leakage.
 - **Artifacts**:
   - `models/random_forest_<ticker>_<timestamp>.pkl`
   - `models/random_forest_<ticker>_<timestamp>_metadata.json`
+  - `models/random_forest_<ticker>_<timestamp>.manifest.json`
 
 ### XGBoost
 - **Estimator**: `XGBClassifier`.
@@ -96,6 +101,7 @@ All splits are chronological to reduce leakage.
   - `models/xgboost_<ticker>_<timestamp>.json`
   - `models/xgboost_<ticker>_<timestamp>.meta.json`
   - `models/xgboost_<ticker>_<timestamp>_metadata.json`
+  - `models/xgboost_<ticker>_<timestamp>.manifest.json`
 
 ## Evaluation Metrics
 - **LSTM training script**: scaled MSE + per-ticker RMSE summary.
@@ -112,3 +118,54 @@ All splits are chronological to reduce leakage.
 ## Notes
 - Ticker coverage is dynamic and depends on `tickers` table contents (not hardcoded in the trainer).
 - For reproducibility, use metadata JSON generated per LSTM/RF/XGB run to capture exact data coverage, split sizes, parameters, metrics, and artifact paths.
+
+## Unified Manifest Sidecar
+All model training scripts now emit a canonical sidecar:
+- `<model_stem>.manifest.json`
+
+Required keys:
+- `schema_version`
+- `model_kind`
+- `model_path`
+- `created_at`
+- `seed`
+- `feature_columns`
+- `data_source`
+- `data_coverage`
+- `split_config`
+- `metrics`
+- `library_versions`
+
+Native model artifacts remain unchanged (`.pkl`, `.json`, `.keras`), but the manifest is the standard machine-readable contract for downstream tooling.
+
+## CLI Breaking Changes
+| Old Flag | New Flag |
+|---|---|
+| `--save-dir` / `--save_dir` | `--output-dir` |
+| `--start` | `--start-date` |
+| `--end` | `--end-date` |
+| `--batch_size` | `--batch-size` |
+| `--sequence_length` | `--sequence-length` |
+| `--max_tickers` | `--max-tickers` |
+| `--train_split` | `--train-split` |
+| `--val_split` | `--val-split` |
+| *(new)* | `--data-source {db,yfinance}` |
+| *(new)* | `--db-path` |
+
+## Reproducible Runbook
+```bash
+# Random Forest (DB-first)
+python scripts/train_random_forest.py --ticker AAPL --no-tune --output-dir models --data-source db --db-path data/financial_advisor.db
+
+# XGBoost (DB-first)
+python scripts/train_xgboost.py --ticker AAPL --no-tune --output-dir models --data-source db --db-path data/financial_advisor.db
+
+# LSTM (DB-first)
+python scripts/train_lstm.py --ticker ALL --epochs 10 --batch-size 32 --output-dir models --data-source db --db-path data/financial_advisor.db
+
+# Walk-forward
+python scripts/run_walkforward.py --ticker AAPL --model rf --output-dir results --data-source db --db-path data/financial_advisor.db
+
+# Backtest
+python scripts/backtest_models.py --ticker AAPL --model models/random_forest_AAPL_<timestamp>.pkl --start-date 2023-01-01 --end-date 2023-12-31 --output-dir results --data-source db --db-path data/financial_advisor.db
+```

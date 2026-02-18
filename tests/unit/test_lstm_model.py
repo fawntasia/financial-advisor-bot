@@ -10,10 +10,12 @@ sys.path.insert(0, ".")
 import numpy as np
 import pytest
 
+from src.models.base_model import ModelNotFittedError
+
 
 class DummyHistory:
     def __init__(self, history=None):
-        self.history = history or {"loss": [1.0]}
+        self.history = history or {"loss": [1.0], "val_loss": [0.9]}
 
 
 class DummySequential:
@@ -151,7 +153,7 @@ def test_train_invokes_fit_with_callbacks_and_validation(monkeypatch, tmp_path):
     y_test = np.array([1.0, 2.0])
     save_path = tmp_path / "models" / "best.h5"
 
-    history = model.train(
+    train_result = model.train(
         X_train,
         y_train,
         X_test=X_test,
@@ -163,7 +165,11 @@ def test_train_invokes_fit_with_callbacks_and_validation(monkeypatch, tmp_path):
         verbose=0,
     )
 
-    assert isinstance(history, DummyHistory)
+    assert "train" in train_result
+    assert "validation" in train_result
+    assert "metadata" in train_result
+    assert train_result["metadata"]["epochs_ran"] == 1
+    assert train_result["metadata"]["train_rows"] == 4
     assert len(model.model.fit_calls) == 1
     fit_call = model.model.fit_calls[0]
     assert fit_call["validation_data"] == (X_test, y_test)
@@ -210,6 +216,19 @@ def test_train_uses_explicit_validation_set_when_provided(monkeypatch):
 def test_predict_calls_underlying_model(monkeypatch):
     lstm_model = import_lstm_model(monkeypatch)
     model = lstm_model.LSTMModel(sequence_length=2, n_features=1)
+
+    with pytest.raises(ModelNotFittedError):
+        model.predict(np.zeros((1, 2, 1)))
+
+    model.train(
+        np.zeros((4, 2, 1)),
+        np.array([1.0, 2.0, 3.0, 4.0]),
+        X_test=np.zeros((2, 2, 1)),
+        y_test=np.array([1.0, 2.0]),
+        epochs=1,
+        batch_size=2,
+        verbose=0,
+    )
 
     X_data = np.zeros((3, 2, 1))
     predictions = model.predict(X_data)

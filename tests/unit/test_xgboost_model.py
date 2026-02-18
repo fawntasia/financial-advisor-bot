@@ -8,6 +8,7 @@ sys.path.insert(0, ".")
 import numpy as np
 import pytest
 
+from src.models.base_model import ModelNotFittedError
 from src.models import xgboost_model
 
 
@@ -92,6 +93,18 @@ def test_train_without_tuning_runs_fit_scores_and_importances(monkeypatch):
 def test_predict_and_predict_proba_use_underlying_model(monkeypatch):
     monkeypatch.setattr(xgboost_model, "XGBClassifier", DummyXGBClassifier)
     model = xgboost_model.XGBoostModel()
+
+    with pytest.raises(ModelNotFittedError):
+        model.predict(np.array([[1.0, 2.0]]))
+    with pytest.raises(ModelNotFittedError):
+        model.predict_proba(np.array([[1.0, 2.0]]))
+
+    model.train(
+        np.array([[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]]),
+        np.array([0, 1, 0, 1]),
+        tune_hyperparameters=False,
+        validation_fraction=0.25,
+    )
 
     X_data = np.array([[1.0, 2.0], [3.0, 4.0]])
     predictions = model.predict(X_data)

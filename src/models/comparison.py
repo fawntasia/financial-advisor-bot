@@ -5,6 +5,8 @@ import numpy as np
 from typing import Dict, List, Any, Optional
 import logging
 
+from src.models.io_utils import ensure_parent_dir
+
 logger = logging.getLogger(__name__)
 
 class ModelComparison:
@@ -46,11 +48,18 @@ class ModelComparison:
         summary = []
         for key, steps in self.results.items():
             ticker, model_name = key.split("_", 1)
+            valid_steps = [
+                step
+                for step in steps
+                if step.get("metrics") and not step.get("metadata", {}).get("skipped_reason")
+            ]
+            if not valid_steps:
+                continue
             
             # Aggregate metrics across all walk-forward steps
-            test_accuracies = [step['metrics'].get('test_accuracy', 0) for step in steps]
-            sharpe_ratios = [step['metrics'].get('sharpe_ratio', 0) for step in steps]
-            max_drawdowns = [step['metrics'].get('max_drawdown', 0) for step in steps]
+            test_accuracies = [step['metrics'].get('test_accuracy', 0) for step in valid_steps]
+            sharpe_ratios = [step['metrics'].get('sharpe_ratio', 0) for step in valid_steps]
+            max_drawdowns = [step['metrics'].get('max_drawdown', 0) for step in valid_steps]
             
             summary.append({
                 'ticker': ticker,
@@ -58,7 +67,7 @@ class ModelComparison:
                 'avg_accuracy': np.mean(test_accuracies),
                 'avg_sharpe': np.mean(sharpe_ratios),
                 'avg_max_drawdown': np.mean(max_drawdowns),
-                'num_steps': len(steps)
+                'num_steps': len(valid_steps)
             })
             
         return pd.DataFrame(summary)
@@ -83,7 +92,7 @@ class ModelComparison:
 
     def save_production_config(self, best_model: Dict[str, Any], config_path: str = "config/production_model.json"):
         """Save the best model metadata to a production config."""
-        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        ensure_parent_dir(config_path)
         
         config = {
             "production_model": {

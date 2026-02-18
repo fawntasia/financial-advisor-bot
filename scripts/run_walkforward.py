@@ -9,7 +9,7 @@ import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.data.stock_data import StockDataProcessor
-from src.models.lstm_model import LSTMModel
+from src.models.data_sources import load_market_data
 from src.models.random_forest_model import RandomForestModel
 from src.models.reproducibility import set_global_seeds
 from src.models.validation import WalkForwardValidator
@@ -26,54 +26,71 @@ def main():
         choices=["rf", "xgb", "lstm"],
         help="Model type",
     )
-    parser.add_argument("--train_years", type=int, default=3, help="Training window years")
-    parser.add_argument("--val_months", type=int, default=3, help="Validation window months")
-    parser.add_argument("--test_months", type=int, default=3, help="Testing window months")
-    parser.add_argument("--step_months", type=int, default=3, help="Walk-forward step size in months")
-    parser.add_argument("--sequence_length", type=int, default=60, help="Sequence length for LSTM")
+    parser.add_argument("--train-years", type=int, default=3, help="Training window years")
+    parser.add_argument("--val-months", type=int, default=3, help="Validation window months")
+    parser.add_argument("--test-months", type=int, default=3, help="Testing window months")
+    parser.add_argument("--step-months", type=int, default=3, help="Walk-forward step size in months")
+    parser.add_argument("--sequence-length", type=int, default=60, help="Sequence length for LSTM")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--output-dir", type=str, default="results", help="Directory for result artifacts")
+    parser.add_argument(
+        "--data-source",
+        type=str,
+        choices=["db", "yfinance"],
+        default="db",
+        help="Evaluation data source",
+    )
+    parser.add_argument("--db-path", type=str, default="data/financial_advisor.db", help="SQLite DB path")
+    parser.add_argument("--start-date", type=str, default=None, help="Start date (YYYY-MM-DD)")
+    parser.add_argument("--end-date", type=str, default=None, help="End date (YYYY-MM-DD)")
+    parser.add_argument("--years", type=int, default=10, help="Fallback lookback years when start-date is omitted")
 
     args = parser.parse_args()
     tf_seed_status = set_global_seeds(seed=args.seed, include_tensorflow=(args.model == "lstm"))
 
     print(
         f"Starting walk-forward validation for {args.ticker} using {args.model} model "
-        f"(seed={args.seed})..."
+        f"(seed={args.seed}, source={args.data_source})..."
     )
     if tf_seed_status:
         print(f"Seed status: {tf_seed_status}")
 
     processor = StockDataProcessor(args.ticker)
-    print("Fetching data...")
-    try:
-        # Fetch 10 years to ensure enough rows for windowed folds.
-        df = processor.fetch_data(years=10)
-    except Exception as e:
-        print(f"Error fetching data: {e}")
+    print("Loading data...")
+    df = load_market_data(
+        ticker=args.ticker,
+        source=args.data_source,
+        db_path=args.db_path,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        years=args.years,
+    )
+    if df.empty:
+        print("No data loaded. Check ticker/source/date range.")
         return
 
     print("Calculating technical indicators...")
     df = processor.add_technical_indicators(df)
 
-    # Normalized date column for validator, keep feature columns unchanged.
     df = df.reset_index()
     if "Date" in df.columns:
         df = df.rename(columns={"Date": "date"})
     elif "date" not in df.columns:
-        # fallback for uncommon index names
         first_col = df.columns[0]
         df = df.rename(columns={first_col: "date"})
 
     feature_cols = ["Close", "SMA_20", "SMA_50", "RSI", "MACD", "Signal_Line"]
 
     if args.model == "rf":
-        model = RandomForestModel(random_state=args.seed)
+        model_factory = lambda: RandomForestModel(random_state=args.seed)
         task_type = "classification"
     elif args.model == "xgb":
-        model = XGBoostModel(random_state=args.seed)
+        model_factory = lambda: XGBoostModel(random_state=args.seed)
         task_type = "classification"
     else:
-        model = LSTMModel(sequence_length=args.sequence_length, n_features=len(feature_cols))
+        from src.models.lstm_model import LSTMModel
+
+        model_factory = lambda: LSTMModel(sequence_length=args.sequence_length, n_features=len(feature_cols))
         task_type = "lstm_regression"
 
     validator = WalkForwardValidator(
@@ -85,7 +102,7 @@ def main():
 
     print("Running walk-forward validation...")
     results = validator.validate(
-        model=model,
+        model_factory=model_factory,
         data=df,
         feature_cols=feature_cols,
         target_col="Close",
@@ -98,14 +115,23 @@ def main():
         print("No results generated. Check your data range and window sizes.")
         return
 
-    print(f"\nCompleted {len(results)} walk-forward steps.")
+    completed_results = [r for r in results if not r["metadata"].get("skipped_reason")]
+    skipped_count = len(results) - len(completed_results)
+    if skipped_count:
+        print(f"Skipped {skipped_count} fold(s) due to insufficient data.")
 
-    avg_test_acc = np.mean([r["metrics"].get("test_accuracy", 0.0) for r in results])
-    avg_test_bal_acc = np.mean([r["metrics"].get("test_balanced_accuracy", 0.0) for r in results])
-    avg_test_f1 = np.mean([r["metrics"].get("test_f1", 0.0) for r in results])
-    avg_test_rmse = np.mean([r["metrics"].get("test_rmse", 0.0) for r in results])
-    avg_sharpe = np.mean([r["metrics"].get("sharpe_ratio", 0.0) for r in results])
-    avg_drawdown = np.mean([r["metrics"].get("max_drawdown", 0.0) for r in results])
+    if not completed_results:
+        print("All folds were skipped. No aggregate metrics available.")
+        return
+
+    print(f"\nCompleted {len(completed_results)} walk-forward steps ({len(results)} total folds).")
+
+    avg_test_acc = np.mean([r["metrics"].get("test_accuracy", 0.0) for r in completed_results])
+    avg_test_bal_acc = np.mean([r["metrics"].get("test_balanced_accuracy", 0.0) for r in completed_results])
+    avg_test_f1 = np.mean([r["metrics"].get("test_f1", 0.0) for r in completed_results])
+    avg_test_rmse = np.mean([r["metrics"].get("test_rmse", 0.0) for r in completed_results])
+    avg_sharpe = np.mean([r["metrics"].get("sharpe_ratio", 0.0) for r in completed_results])
+    avg_drawdown = np.mean([r["metrics"].get("max_drawdown", 0.0) for r in completed_results])
 
     print("\n=== Aggregated Results ===")
     print(f"Average Test Accuracy:          {avg_test_acc:.4f}")
@@ -115,9 +141,8 @@ def main():
     print(f"Average Sharpe Ratio:           {avg_sharpe:.4f}")
     print(f"Average Max Drawdown:           {avg_drawdown:.4f}")
 
-    output_dir = "results"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, f"wf_results_{args.ticker}_{args.model}.json")
+    os.makedirs(args.output_dir, exist_ok=True)
+    output_path = os.path.join(args.output_dir, f"wf_results_{args.ticker}_{args.model}.json")
 
     serializable_results = []
     for result in results:

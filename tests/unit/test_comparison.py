@@ -73,7 +73,10 @@ def test_save_production_config_writes_expected_payload():
                 with patch("src.models.comparison.json.dump") as dump_mock:
                     comparison.save_production_config(best_model, config_path="config/prod.json")
 
-    makedirs_mock.assert_called_once_with("config", exist_ok=True)
+    makedirs_mock.assert_called_once()
+    mk_args, mk_kwargs = makedirs_mock.call_args
+    assert mk_kwargs == {"exist_ok": True}
+    assert str(mk_args[0]).endswith("config")
     open_mock.assert_called_once_with("config/prod.json", "w")
     dump_args, _ = dump_mock.call_args
     written = dump_args[0]
