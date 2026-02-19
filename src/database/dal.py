@@ -288,6 +288,20 @@ class DataAccessLayer:
                  predicted_price, confidence, features_hash)
             )
             conn.commit()
+
+    def get_prediction_by_key(self, ticker: str, model_name: str, date: str) -> Optional[Dict]:
+        """Fetch the most recent prediction row for (ticker, model_name, date)."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT * FROM predictions
+                   WHERE ticker = ? AND model_name = ? AND date = ?
+                   ORDER BY created_at DESC
+                   LIMIT 1""",
+                (ticker, model_name, date),
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
     
     def get_predictions(self, ticker: str, model_name: Optional[str] = None,
                         limit: int = 100) -> List[Dict]:

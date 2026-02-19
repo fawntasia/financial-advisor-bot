@@ -57,6 +57,8 @@ This document summarizes the architecture and data flow for the Financial Adviso
 - `src/ui/views.py`: Dashboard, analysis, and disclaimer views.
 - `src/ui/chat.py`: Chat manager and LLM interaction flow.
 - `src/ui/charts.py`: Plotly chart generation utilities.
+- `src/ui/lstm_visualization.py`: LSTM artifact loading + visualization payload construction.
+- `src/ui/classification_visualization.py`: RF/XGBoost artifact loading, signal inference, and idempotent prediction persistence helpers.
 
 ### Database Access
 - `src/database/dal.py`: Centralized read/write layer for SQLite tables.
@@ -137,6 +139,8 @@ Model scripts now use normalized flag names:
 - External APIs are used by ingestion scripts; model training scripts are DB-backed.
 - Llama 3 requires a local GGUF model file in `models/llama3/` to enable full chat responses.
 - FinBERT model files are expected under `models/finbert/` for sentiment runs.
+- Stock Analysis now uses three tabs: `LSTM`, `Random Forest`, and `XGBoost`.
+- RF/XGBoost frontend inference writes one prediction per `(ticker, model_name, prediction_date)` by checking existing rows before insert.
 
 ## Current Implementation Notes
 - Walk-forward validation supports RF, XGB, and LSTM (`scripts/run_walkforward.py`).

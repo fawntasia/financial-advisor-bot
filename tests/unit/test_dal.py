@@ -396,6 +396,20 @@ class TestDataAccessLayer:
         assert len(lstm_preds) == 1
         assert lstm_preds[0]["model_name"] == "LSTM"
 
+    def test_get_prediction_by_key(self, dal):
+        """Test lookup of a single prediction by ticker/model/date key."""
+        dal.insert_ticker("AAPL", "Apple Inc.")
+        dal.insert_prediction("AAPL", "2023-01-02", "RandomForest_v2", 1, confidence=0.62)
+
+        row = dal.get_prediction_by_key("AAPL", "RandomForest_v2", "2023-01-02")
+        assert row is not None
+        assert row["ticker"] == "AAPL"
+        assert row["model_name"] == "RandomForest_v2"
+        assert row["date"] == "2023-01-02"
+
+        missing = dal.get_prediction_by_key("AAPL", "RandomForest_v2", "2023-01-03")
+        assert missing is None
+
     # ==================== Model Performance ====================
 
     def test_model_performance_operations(self, dal):

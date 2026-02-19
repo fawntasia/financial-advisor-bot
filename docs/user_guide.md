@@ -32,10 +32,19 @@ streamlit run app.py
 - **Sentiment analysis** from financial news headlines (FinBERT-based).
 - **ML forecasts** using LSTM and ensemble models.
 - **Interactive UI** for exploration and chat.
+- **Tabbed Stock Analysis** with:
+  - `LSTM`: historical fit + forward forecast chart.
+  - `Random Forest`: next-business-day direction signal cards.
+  - `XGBoost`: next-business-day direction signal cards.
 
 ## Interpreting Outputs
 - **Indicators**: Use technical signals as context, not single-decision triggers.
 - **Model outputs**: Treat direction predictions as probabilistic signals, not guarantees.
+- **Classifier signal cards**:
+  - `Predicted Direction`: UP or DOWN for the next business day.
+  - `UP Probability`: model probability of an upward move.
+  - `Decision Threshold`: probability cutoff used for UP vs DOWN.
+  - `Confidence`: probability aligned to the predicted class.
 - **Backtests**: Compare strategy metrics to buy-and-hold benchmarks for context.
 - **Risk metrics**: Sharpe ratio and max drawdown indicate risk-adjusted performance.
 

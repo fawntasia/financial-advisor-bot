@@ -7,20 +7,38 @@ import streamlit as st
 
 from src.database.dal import DataAccessLayer
 from src.ui.charts import ChartGenerator
+from src.ui.classification_visualization import generate_classification_signal_data
 from src.ui.lstm_visualization import generate_lstm_visualization_data
 
 
-def show_stock_analysis():
-    """Render ticker-specific technical charts and LSTM visualizations."""
-    st.header("Stock Analysis")
-    ticker = st.session_state.get("ticker", "AAPL")
-    st.write(f"Displaying analysis for: **{ticker}**")
+def _format_ratio(value) -> str:
+    """Format a ratio value as percentage text, or N/A when unavailable."""
+    if value is None:
+        return "N/A"
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    if isnan(numeric):
+        return "N/A"
+    return f"{numeric:.2%}"
 
-    dal = st.session_state.get("dal")
-    if dal is None:
-        dal = DataAccessLayer()
-        st.session_state.dal = dal
 
+def _format_decimal(value, digits: int = 3) -> str:
+    """Format a decimal value, or N/A when unavailable."""
+    if value is None:
+        return "N/A"
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    if isnan(numeric):
+        return "N/A"
+    return f"{numeric:.{digits}f}"
+
+
+def _render_lstm_tab(ticker: str, dal: DataAccessLayer, chart_generator: ChartGenerator):
+    """Render the existing LSTM chart and forecast section."""
     with st.spinner(f"Fetching data and model output for {ticker}..."):
         try:
             viz_data = generate_lstm_visualization_data(
@@ -36,8 +54,6 @@ def show_stock_analysis():
                 "Confirm that price history exists in `data/financial_advisor.db` and that LSTM artifacts are available in `models/`."
             )
             return
-
-    chart_generator = ChartGenerator()
 
     st.subheader(
         "Technical Overview",
@@ -83,6 +99,72 @@ def show_stock_analysis():
         st.warning(
             f"Ticker-specific scalers were not found for {ticker}. Using scaler from {viz_data['scaler_ticker']} as fallback."
         )
+
+
+def _render_classifier_tab(ticker: str, dal: DataAccessLayer, model_type: str, label: str):
+    """Render concise classifier signal cards for RF/XGBoost."""
+    with st.spinner(f"Fetching {label} signal for {ticker}..."):
+        try:
+            signal = generate_classification_signal_data(
+                ticker=ticker,
+                model_type=model_type,
+                dal=dal,
+                eval_window=90,
+                persist_prediction=True,
+            )
+        except Exception as exc:
+            st.error(f"Unable to load {label} signal for {ticker}: {exc}")
+            if model_type == "rf":
+                st.info(
+                    "Expected artifacts in `models/`: `random_forest_global.pkl` and `random_forest_global_metadata.json`."
+                )
+            else:
+                st.info("Expected artifacts in `models/`: `xgboost_global.json` and `xgboost_global_metadata.json`.")
+            return
+
+    st.subheader(
+        f"{label} Signal",
+        help="Direction and confidence for the next business day, inferred from local model artifacts.",
+    )
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Predicted Direction", signal["predicted_label"])
+    col2.metric("UP Probability", _format_ratio(signal["prob_up"]))
+    col3.metric("Decision Threshold", _format_decimal(signal["decision_threshold"], digits=2))
+    col4.metric("Confidence", _format_ratio(signal["confidence"]))
+
+    global_bal = _format_ratio(signal["global_test_metrics"].get("balanced_accuracy"))
+    global_f1 = _format_ratio(signal["global_test_metrics"].get("f1"))
+    ticker_bal = _format_ratio(signal["ticker_test_metrics"].get("balanced_accuracy"))
+    artifact_name = Path(signal["artifact_paths"]["model_path"]).name
+    st.caption(
+        f"Prediction date: `{signal['prediction_date']}` | Artifact: `{artifact_name}` | "
+        f"Global test balanced accuracy: `{global_bal}` | Global test F1: `{global_f1}` | "
+        f"{ticker} test balanced accuracy: `{ticker_bal}`"
+    )
+
+
+def show_stock_analysis():
+    """Render ticker-specific technical charts and model signal tabs."""
+    st.header("Stock Analysis")
+    ticker = st.session_state.get("ticker", "AAPL")
+    st.write(f"Displaying analysis for: **{ticker}**")
+
+    dal = st.session_state.get("dal")
+    if dal is None:
+        dal = DataAccessLayer()
+        st.session_state.dal = dal
+
+    chart_generator = ChartGenerator()
+    lstm_tab, rf_tab, xgb_tab = st.tabs(["LSTM", "Random Forest", "XGBoost"])
+
+    with lstm_tab:
+        _render_lstm_tab(ticker=ticker, dal=dal, chart_generator=chart_generator)
+
+    with rf_tab:
+        _render_classifier_tab(ticker=ticker, dal=dal, model_type="rf", label="Random Forest")
+
+    with xgb_tab:
+        _render_classifier_tab(ticker=ticker, dal=dal, model_type="xgb", label="XGBoost")
 
 
 def show_chat_interface():
