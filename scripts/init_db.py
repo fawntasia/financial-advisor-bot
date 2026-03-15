@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 DATABASE_PATH = Path("data/financial_advisor.db")
 
-# S&P 500 constituents as of 2024 (503 tickers)
+# Fallback local S&P 500 ticker snapshot (may be stale; use scripts/update_tickers.py for strict current sync)
 SP500_TICKERS = [
     ("AAPL", "Apple Inc.", "Information Technology", "Technology Hardware, Storage & Peripherals", "1982-11-30"),
     ("MSFT", "Microsoft Corporation", "Information Technology", "Systems Software", "1994-06-01"),

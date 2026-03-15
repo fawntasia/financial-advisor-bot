@@ -19,9 +19,10 @@ from src.data.news_client import get_news_client
 from src.utils.logger import get_logger
 
 logger = get_logger("ingest_data")
+DEFAULT_LOOKBACK_DAYS = 365 * 5
 
-def ingest_stock_data(dal: DataAccessLayer, days: int = 365 * 5):
-    """Fetch and store stock price data."""
+def ingest_stock_data(dal: DataAccessLayer, days: int = DEFAULT_LOOKBACK_DAYS):
+    """Fetch and store stock price data (default: 5-year lookback for new tickers)."""
     client = YFinanceClient()
     tickers = dal.get_all_tickers()
     
@@ -54,8 +55,14 @@ def ingest_stock_data(dal: DataAccessLayer, days: int = 365 * 5):
                 current_date = datetime.now().strftime("%Y-%m-%d")
                 df = client.get_ticker(ticker, start=start_date, end=current_date)
             else:
-                # Default to fetching data from 2000-01-01 if no data exists
-                df = client.get_ticker(ticker, start="2000-01-01")
+                # Initial backfill for new symbols: bounded 5-year window by default.
+                current_dt = datetime.now()
+                start_dt = current_dt - timedelta(days=max(1, int(days)))
+                df = client.get_ticker(
+                    ticker,
+                    start=start_dt.strftime("%Y-%m-%d"),
+                    end=current_dt.strftime("%Y-%m-%d"),
+                )
             
             if df.empty:
                 stats["failed"] += 1

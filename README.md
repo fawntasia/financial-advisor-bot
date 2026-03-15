@@ -96,10 +96,18 @@ To fetch the latest S&P 500 tickers from Wikipedia:
 python scripts/update_tickers.py
 ```
 
-To fetch the latest stock data and news (incremental update or full history from 2000):
+`update_tickers.py` now performs a strict sync: it keeps only current S&P 500 constituents in the `tickers` table (stale symbols are removed).
+
+To fetch the latest stock data and news (incremental update; new symbols are backfilled with a bounded 5-year history):
 
 ```bash
 python scripts/ingest_data.py
+```
+
+To (re)download a 5-year OHLCV window for all current S&P 500 symbols:
+
+```bash
+python scripts/download_historical_data.py
 ```
 
 ### Model Training and Evaluation (DB-First)

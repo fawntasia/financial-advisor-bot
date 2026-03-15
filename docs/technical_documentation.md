@@ -10,7 +10,7 @@ This document summarizes the architecture and data flow for the Financial Adviso
 - **LLM**: Llama 3 (llama-cpp) for chat responses, grounded by database context.
 
 ## Data Flow Summary
-1. **Ingestion**: Scripts fetch OHLCV data and news, then write to SQLite.
+1. **Ingestion**: Scripts fetch OHLCV data and news, then write to SQLite. Historical OHLCV storage is intentionally bounded to a 5-year lookback window for MVP footprint control.
 2. **Feature/Indicators**: Technical indicators computed and stored for each ticker/date.
 3. **Sentiment**: FinBERT scores headlines and aggregates daily sentiment.
 4. **Modeling**:
@@ -116,8 +116,9 @@ Training manifests include:
 
 ## Operational Scripts (Selected)
 - `scripts/init_db.py`: Creates schema and seeds S&P 500 tickers.
-- `scripts/ingest_data.py`: Main ingestion workflow for prices + news.
-- `scripts/download_historical_data.py`, `scripts/fetch_news.py`: Data source fetchers.
+- `scripts/update_tickers.py`: Syncs ticker universe to current S&P 500 constituents (adds missing, removes stale non-index symbols).
+- `scripts/ingest_data.py`: Main ingestion workflow for prices + news (incremental updates; 5-year initial backfill for new symbols).
+- `scripts/download_historical_data.py`, `scripts/fetch_news.py`: Data source fetchers (`download_historical_data.py` enforces a 5-year OHLCV window).
 - `scripts/run_sentiment_analysis.py`: FinBERT scoring and aggregation.
 - `scripts/train_lstm.py`: DB-backed LSTM trainer (defaults to all tickers in `tickers` table).
 - `scripts/train_random_forest.py`, `scripts/train_xgboost.py`: DB-backed global classifier training scripts with split-safe labels and run metadata.

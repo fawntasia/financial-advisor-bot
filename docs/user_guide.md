@@ -55,6 +55,7 @@ streamlit run app.py
 
 ## Data Limitations
 - Coverage is limited to S&P 500 equities and available historical data.
+- Historical OHLCV storage is intentionally capped to an approximately 5-year window.
 - News sentiment reflects headline content and may miss broader context.
 - Model performance can degrade in new market regimes.
 

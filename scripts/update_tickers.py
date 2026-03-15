@@ -1,8 +1,9 @@
-
-import sys
+import argparse
+import json
 import logging
+import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Set, Tuple
 from urllib.request import Request, urlopen
 
 from bs4 import BeautifulSoup
@@ -19,6 +20,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("update_tickers")
+CHECKPOINT_FILE = Path("data/download_checkpoint.json")
 
 
 def _clean_cell_text(value: str) -> str:
@@ -99,13 +101,84 @@ def fetch_sp500_from_wikipedia(url: str) -> List[Tuple[str, str, str, str, str]]
 
     return tickers
 
-def update_sp500_tickers():
-    """Fetch S&P 500 tickers from Wikipedia and update the database."""
+def _dedupe_by_symbol(records: List[Tuple[str, str, str, str, str]]) -> List[Tuple[str, str, str, str, str]]:
+    """Keep one row per symbol (latest occurrence wins) to protect against duplicate source rows."""
+    by_symbol: Dict[str, Tuple[str, str, str, str, str]] = {}
+    for record in records:
+        by_symbol[record[0]] = record
+    return list(by_symbol.values())
+
+
+def _delete_stale_tickers(dal: DataAccessLayer, stale_tickers: List[str]) -> None:
+    """Delete stale symbols and their dependent rows."""
+    if not stale_tickers:
+        return
+
+    placeholders = ",".join("?" for _ in stale_tickers)
+    with dal.get_connection() as conn:
+        cursor = conn.cursor()
+
+        # Delete child rows before parent rows to keep integrity even when foreign keys are enabled.
+        cursor.execute(
+            f"""
+            DELETE FROM sentiment_scores
+            WHERE news_id IN (
+                SELECT id FROM news_headlines WHERE ticker IN ({placeholders})
+            )
+            """,
+            stale_tickers,
+        )
+        cursor.execute(f"DELETE FROM news_headlines WHERE ticker IN ({placeholders})", stale_tickers)
+        cursor.execute(f"DELETE FROM stock_prices WHERE ticker IN ({placeholders})", stale_tickers)
+        cursor.execute(f"DELETE FROM technical_indicators WHERE ticker IN ({placeholders})", stale_tickers)
+        cursor.execute(f"DELETE FROM daily_sentiment WHERE ticker IN ({placeholders})", stale_tickers)
+        cursor.execute(f"DELETE FROM predictions WHERE ticker IN ({placeholders})", stale_tickers)
+        cursor.execute(f"DELETE FROM model_performance WHERE ticker IN ({placeholders})", stale_tickers)
+        cursor.execute(f"DELETE FROM tickers WHERE ticker IN ({placeholders})", stale_tickers)
+        conn.commit()
+
+
+def _sync_download_checkpoint(valid_tickers: Set[str]) -> None:
+    """Keep checkpoint entries aligned to the active ticker universe."""
+    if not CHECKPOINT_FILE.exists():
+        return
+
+    try:
+        payload = json.loads(CHECKPOINT_FILE.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning(f"Could not parse checkpoint file {CHECKPOINT_FILE}: {exc}")
+        return
+
+    completed = payload.get("completed_tickers", [])
+    if not isinstance(completed, list):
+        logger.warning("Checkpoint format invalid: completed_tickers is not a list.")
+        return
+
+    filtered = [ticker for ticker in completed if ticker in valid_tickers]
+    # Preserve order while deduplicating.
+    deduped = list(dict.fromkeys(filtered))
+    if deduped == completed:
+        return
+
+    CHECKPOINT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    CHECKPOINT_FILE.write_text(
+        json.dumps({"completed_tickers": deduped}, ensure_ascii=True),
+        encoding="utf-8",
+    )
+    logger.info(
+        "Checkpoint synced: %d -> %d completed tickers.",
+        len(completed),
+        len(deduped),
+    )
+
+
+def update_sp500_tickers(prune_stale: bool = True):
+    """Fetch current S&P 500 constituents and sync the local DB ticker universe."""
     dal = DataAccessLayer()
-    
+
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
     logger.info(f"Fetching S&P 500 tickers from {url}...")
-    
+
     try:
         records = fetch_sp500_from_wikipedia(url)
     except Exception as e:
@@ -113,30 +186,52 @@ def update_sp500_tickers():
         records = list(SP500_TICKERS)
 
     try:
+        records = _dedupe_by_symbol(records)
+        target_symbols = {ticker for ticker, *_ in records}
+
         count = 0
-        updated = 0
-        
+        inserted = 0
+
         for ticker, name, sector, industry, date_added in records:
-            # Wikipedia uses dots (BRK.B), yfinance prefers hyphens (BRK-B).
-            # We store the canonical wiki symbol and convert in yfinance client.
-            
-            # Check if exists
             existing = dal.get_ticker_info(ticker)
             if not existing:
                 dal.insert_ticker(ticker, name, sector, industry, date_added)
-                updated += 1
+                inserted += 1
             else:
-                # Optionally update details? For now just skip or overwrite if we want to refresh metadata
                 dal.insert_ticker(ticker, name, sector, industry, date_added)
-            
             count += 1
-            
-        logger.info(f"Processed {count} tickers. Added/Updated {updated} new tickers.")
-        
+
+        stale_tickers: List[str] = []
+        if prune_stale:
+            db_tickers = set(dal.get_all_tickers())
+            stale_tickers = sorted(db_tickers - target_symbols)
+            _delete_stale_tickers(dal, stale_tickers)
+
+        final_tickers = set(dal.get_all_tickers())
+        _sync_download_checkpoint(final_tickers)
+
+        logger.info(
+            "S&P 500 sync complete. Source=%d, inserted=%d, removed=%d, final_universe=%d",
+            count,
+            inserted,
+            len(stale_tickers),
+            len(final_tickers),
+        )
+
     except Exception as e:
         logger.error(f"Failed to update tickers: {e}")
-        # Fallback to init_db if Wikipedia fails?
-        # For now, just log error.
+        raise
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Sync DB ticker universe to current S&P 500 constituents.")
+    parser.add_argument(
+        "--keep-stale",
+        action="store_true",
+        help="Do not delete tickers that are no longer in the S&P 500.",
+    )
+    args = parser.parse_args()
+    update_sp500_tickers(prune_stale=not args.keep_stale)
 
 if __name__ == "__main__":
-    update_sp500_tickers()
+    main()

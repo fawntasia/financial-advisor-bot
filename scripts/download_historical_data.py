@@ -27,6 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 CHECKPOINT_FILE = Path("data/download_checkpoint.json")
+LOOKBACK_PERIOD = "5y"
 
 def load_checkpoint():
     if CHECKPOINT_FILE.exists():
@@ -51,15 +52,21 @@ def main():
     logger.info(f"Starting historical data download for {len(tickers)} tickers.")
     
     checkpoint = load_checkpoint()
-    completed_tickers = checkpoint["completed_tickers"]
+    completed_raw = checkpoint.get("completed_tickers", [])
+    ticker_set = set(tickers)
+    completed_tickers = [t for t in completed_raw if t in ticker_set]
+    # Keep checkpoint aligned with current ticker universe.
+    completed_tickers = list(dict.fromkeys(completed_tickers))
+    if completed_tickers != completed_raw:
+        save_checkpoint(completed_tickers)
     
     tickers_to_download = [t for t in tickers if t not in completed_tickers]
     logger.info(f"Already completed: {len(completed_tickers)}. Remaining: {len(tickers_to_download)}.")
     
     for ticker in tqdm(tickers_to_download, desc="Downloading tickers"):
         try:
-            # Fetch data from 2000-01-01 onwards
-            df = client.get_ticker(ticker, start="2000-01-01")
+            # Fetch bounded history window for MVP footprint control.
+            df = client.get_ticker(ticker, period=LOOKBACK_PERIOD)
             
             if df.empty:
                 logger.warning(f"No data for {ticker}")
