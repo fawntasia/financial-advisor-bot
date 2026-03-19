@@ -26,7 +26,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def fetch_and_store_news(tickers: List[str], days: int = 7, provider: str = "newsapi"):
+def fetch_and_store_news(tickers: List[str], days: int = 7, provider: str = "auto"):
     """Fetch news for tickers and store in DB."""
     dal = DataAccessLayer()
     client = get_news_client(provider)
@@ -52,7 +52,9 @@ def fetch_and_store_news(tickers: List[str], days: int = 7, provider: str = "new
                     headline=article["title"],
                     source=article["source"],
                     url=article["url"],
-                    published_at=article["published_at"]
+                    published_at=article["published_at"],
+                    summary=article.get("summary"),
+                    provider=article.get("provider", provider),
                 )
                 if headline_id:
                     new_count += 1
@@ -70,7 +72,7 @@ def main():
     parser.add_argument("--tickers", nargs="+", help="Ticker symbols to fetch news for.")
     parser.add_argument("--all", action="store_true", help="Fetch news for all tickers in DB.")
     parser.add_argument("--days", type=int, default=7, help="Number of days to look back.")
-    parser.add_argument("--provider", default="newsapi", choices=["newsapi", "alphavantage", "mock"], help="News provider to use.")
+    parser.add_argument("--provider", default="auto", choices=["auto", "rss", "newsapi", "alphavantage", "mock"], help="News provider to use.")
     
     args = parser.parse_args()
     

@@ -496,6 +496,8 @@ def create_tables(conn):
             source TEXT,
             url TEXT,
             published_at TIMESTAMP,
+            summary TEXT,
+            provider TEXT,
             fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -683,6 +685,46 @@ def record_migration(conn, version, description):
     )
     conn.commit()
 
+
+def apply_migration_v2(conn):
+    """
+    Migration v2:
+      - Add news summary/provider columns if missing.
+      - Add unique dedupe index for news_headlines.
+    """
+    cursor = conn.cursor()
+    table_exists = cursor.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='news_headlines'"
+    ).fetchone()
+    if not table_exists:
+        return
+
+    columns = {row[1] for row in cursor.execute("PRAGMA table_info(news_headlines)").fetchall()}
+    if "summary" not in columns:
+        cursor.execute("ALTER TABLE news_headlines ADD COLUMN summary TEXT")
+    if "provider" not in columns:
+        cursor.execute("ALTER TABLE news_headlines ADD COLUMN provider TEXT")
+
+    # Cleanup duplicates before creating/enforcing unique index.
+    cursor.execute(
+        """
+        DELETE FROM news_headlines
+        WHERE id NOT IN (
+            SELECT MIN(id)
+            FROM news_headlines
+            GROUP BY ticker, headline, published_at, COALESCE(url, '')
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_news_headlines_dedupe
+        ON news_headlines(ticker, headline, published_at, COALESCE(url, ''))
+        """
+    )
+    conn.commit()
+    record_migration(conn, 2, "Add news summary/provider columns and dedupe unique index")
+
 def main():
     """Main initialization function."""
     print("=" * 60)
@@ -711,7 +753,8 @@ def main():
         populate_tickers(conn)
         
         # Record initial migration
-        record_migration(conn, 1, "Initial schema creation with 10 tables")
+        record_migration(conn, 1, "Initial schema creation with 11 tables")
+        apply_migration_v2(conn)
         
         print()
         print("=" * 60)

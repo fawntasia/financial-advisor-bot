@@ -104,6 +104,33 @@ To fetch the latest stock data and news (incremental update; new symbols are bac
 python scripts/ingest_data.py
 ```
 
+News ingestion defaults are now free-first:
+- `--news-provider auto` (default): tries Yahoo Finance RSS first (no key required), then falls back to NewsAPI / Alpha Vantage when keys are available.
+- Round-robin ticker coverage: each run ingests a bounded subset and advances a persisted cursor (`news_round_robin_cursor`) in `user_preferences`.
+
+Examples:
+
+```bash
+# Ingest prices + news using defaults (auto provider, 25 tickers/run, 10 articles/ticker)
+python scripts/ingest_data.py
+
+# Increase daily ticker coverage while staying round-robin
+python scripts/ingest_data.py --news-max-tickers 50 --news-limit 5
+
+# Force RSS-only mode
+python scripts/ingest_data.py --news-provider rss
+```
+
+For targeted manual fetches (specific symbols or full list):
+
+```bash
+# Fetch for specific symbols
+python scripts/fetch_news.py --tickers AAPL MSFT --provider auto --days 7
+
+# Fetch for all DB tickers using RSS-only mode
+python scripts/fetch_news.py --all --provider rss --days 3
+```
+
 To (re)download a 5-year OHLCV window for all current S&P 500 symbols:
 
 ```bash

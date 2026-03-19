@@ -3,10 +3,11 @@ Data ingestion script for Financial Advisor Bot.
 Fetches historical data for all tickers and financial news.
 """
 
+import argparse
 import sys
-import logging
 from pathlib import Path
 from datetime import datetime, timedelta
+from typing import List, Tuple
 import pandas as pd
 from tqdm import tqdm
 
@@ -20,6 +21,37 @@ from src.utils.logger import get_logger
 
 logger = get_logger("ingest_data")
 DEFAULT_LOOKBACK_DAYS = 365 * 5
+DEFAULT_NEWS_DAYS = 7
+DEFAULT_NEWS_LIMIT = 10
+DEFAULT_NEWS_MAX_TICKERS = 25
+
+
+def _select_tickers_round_robin(tickers: List[str], cursor: int, max_tickers: int) -> Tuple[List[str], int]:
+    """Select a bounded ticker subset and return (selected, next_cursor)."""
+    if not tickers or max_tickers <= 0:
+        return [], 0
+
+    total = len(tickers)
+    start = cursor % total
+    take = min(max_tickers, total)
+
+    selected = [tickers[(start + i) % total] for i in range(take)]
+    next_cursor = (start + take) % total
+    return selected, next_cursor
+
+
+def _get_news_cursor(dal: DataAccessLayer, total_tickers: int) -> int:
+    """Load and sanitize persisted round-robin cursor."""
+    if total_tickers <= 0:
+        return 0
+    raw_cursor = dal.get_user_preference("news_round_robin_cursor")
+    if raw_cursor is None:
+        return 0
+    try:
+        return int(raw_cursor) % total_tickers
+    except ValueError:
+        logger.warning("Invalid news_round_robin_cursor value %r. Resetting to 0.", raw_cursor)
+        return 0
 
 def ingest_stock_data(dal: DataAccessLayer, days: int = DEFAULT_LOOKBACK_DAYS):
     """Fetch and store stock price data (default: 5-year lookback for new tickers)."""
@@ -108,66 +140,137 @@ def ingest_stock_data(dal: DataAccessLayer, days: int = DEFAULT_LOOKBACK_DAYS):
             stats["failed"] += 1
             
     logger.info(f"Stock Data Complete. Processed: {stats['processed']}, Failed: {stats['failed']}")
+    return stats
 
-def ingest_news_data(dal: DataAccessLayer, days: int = 7):
-    """Fetch and store news headlines."""
-    # Use NewsAPI by default, or configurable
-    client = get_news_client(provider="newsapi") 
+def ingest_news_data(
+    dal: DataAccessLayer,
+    days: int = DEFAULT_NEWS_DAYS,
+    provider: str = "auto",
+    limit: int = DEFAULT_NEWS_LIMIT,
+    max_tickers: int = DEFAULT_NEWS_MAX_TICKERS,
+):
+    """Fetch and store news headlines for a round-robin ticker subset."""
+    stats = {
+        "processed": 0,
+        "records_inserted": 0,
+        "duplicates": 0,
+        "failed": 0,
+        "selected_tickers": 0,
+        "cursor_start": 0,
+        "cursor_end": 0,
+    }
+
+    client = get_news_client(provider=provider)
     tickers = dal.get_all_tickers()
-    
-    # NewsAPI free tier is limited, so we might want to be careful.
-    # For now, let's just fetch for top tickers or general market news to save requests
-    # Or fetch specifically for each ticker if we have a premium key.
-    # Strategy: Fetch for top 10 tickers + "S&P 500" general query.
-    
-    # Simplified strategy for demo: Query "S&P 500" and major tickers
-    queries = ["S&P 500", "Stock Market", "Economy"] + tickers[:5] 
-    
-    logger.info(f"Starting news ingestion for {len(queries)} queries...")
-    
+
+    if not tickers:
+        logger.warning("No tickers available. Skipping news ingestion.")
+        return stats
+
+    cursor = _get_news_cursor(dal, len(tickers))
+    selected_tickers, next_cursor = _select_tickers_round_robin(tickers, cursor, max_tickers)
+    if not selected_tickers:
+        logger.warning("No tickers selected for news ingestion.")
+        return stats
+
+    stats["selected_tickers"] = len(selected_tickers)
+    stats["cursor_start"] = cursor
+    stats["cursor_end"] = next_cursor
+
+    logger.info(
+        "Starting news ingestion for %d tickers (provider=%s, cursor=%d, next_cursor=%d)...",
+        len(selected_tickers),
+        provider,
+        cursor,
+        next_cursor,
+    )
+
     start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
     end_date = datetime.now().strftime("%Y-%m-%d")
-    
-    stats = {"processed": 0, "records_inserted": 0}
-    
-    for query in tqdm(queries, desc="News Data"):
-        try:
-            articles = client.fetch_news(query, start_date=start_date, end_date=end_date)
-            
-            for article in articles:
-                # Map query to ticker if it's a ticker
-                ticker = query if query in tickers else "UNKNOWN"
-                
-                # Check for duplicates or insert
-                # Note: insert_news_headline returns ID or None
-                dal.insert_news_headline(
-                    ticker=ticker,
-                    headline=article['title'],
-                    source=article['source'],
-                    url=article['url'],
-                    published_at=article['published_at']
-                )
-                stats["records_inserted"] += 1
-                
-            stats["processed"] += 1
-            
-        except Exception as e:
-            logger.error(f"Error fetching news for {query}: {e}")
-            
-    logger.info(f"News Data Complete. Queries: {stats['processed']}, Articles: {stats['records_inserted']}")
 
-def ingest_data():
+    for ticker in tqdm(selected_tickers, desc="News Data"):
+        try:
+            articles = client.fetch_news(
+                ticker,
+                start_date=start_date,
+                end_date=end_date,
+                limit=limit,
+            )
+
+            for article in articles:
+                headline = article.get("title")
+                if not headline:
+                    continue
+
+                headline_id = dal.insert_news_headline(
+                    ticker=ticker,
+                    headline=headline,
+                    source=article.get("source"),
+                    url=article.get("url"),
+                    published_at=article.get("published_at"),
+                    summary=article.get("summary"),
+                    provider=article.get("provider", provider),
+                )
+                if headline_id:
+                    stats["records_inserted"] += 1
+                else:
+                    stats["duplicates"] += 1
+
+            stats["processed"] += 1
+
+        except Exception as e:
+            logger.error(f"Error fetching news for {ticker}: {e}")
+            stats["failed"] += 1
+
+    dal.set_user_preference("news_round_robin_cursor", str(next_cursor))
+    logger.info(
+        "News Data Complete. Tickers processed: %d, failed: %d, inserted: %d, duplicates: %d, next_cursor: %d",
+        stats["processed"],
+        stats["failed"],
+        stats["records_inserted"],
+        stats["duplicates"],
+        next_cursor,
+    )
+    return stats
+
+
+def ingest_data(
+    stock_days: int = DEFAULT_LOOKBACK_DAYS,
+    news_days: int = DEFAULT_NEWS_DAYS,
+    news_provider: str = "auto",
+    news_limit: int = DEFAULT_NEWS_LIMIT,
+    news_max_tickers: int = DEFAULT_NEWS_MAX_TICKERS,
+):
     """Main ingestion function."""
     dal = DataAccessLayer()
-    
+
     # 1. Ingest Stock Data
-    ingest_stock_data(dal)
-    
+    stock_stats = ingest_stock_data(dal, days=stock_days)
+
     # 2. Ingest News Data
-    ingest_news_data(dal)
+    news_stats = ingest_news_data(
+        dal,
+        days=news_days,
+        provider=news_provider,
+        limit=news_limit,
+        max_tickers=news_max_tickers,
+    )
+    return {"stock": stock_stats, "news": news_stats}
 
 def main():
-    ingest_data()
+    parser = argparse.ArgumentParser(description="Ingest stock prices and financial news into the SQLite DB.")
+    parser.add_argument("--news-provider", type=str, default="auto", choices=["auto", "rss", "newsapi", "alphavantage", "mock"], help="News provider strategy.")
+    parser.add_argument("--news-days", type=int, default=DEFAULT_NEWS_DAYS, help="Days of history to request per ticker.")
+    parser.add_argument("--news-limit", type=int, default=DEFAULT_NEWS_LIMIT, help="Max articles to request per ticker.")
+    parser.add_argument("--news-max-tickers", type=int, default=DEFAULT_NEWS_MAX_TICKERS, help="Round-robin ticker count per run.")
+
+    args = parser.parse_args()
+    ingest_data(
+        news_days=max(1, args.news_days),
+        news_provider=args.news_provider,
+        news_limit=max(1, args.news_limit),
+        news_max_tickers=max(1, args.news_max_tickers),
+    )
 
 if __name__ == "__main__":
     main()

@@ -150,6 +150,26 @@ class TestSentimentPipeline:
         assert records[0]['neutral_score'] == 0.55
         assert records[0]['confidence'] == 0.55
 
+    def test_process_headlines_uses_headline_plus_summary_and_strips_html(self, pipeline, mock_loader):
+        headlines = [
+            {
+                'id': 100,
+                'headline': 'Earnings beat expectations',
+                'summary': '<a href="https://example.com">Revenue up</a> &amp; margins improved',
+                'ticker': 'AAPL',
+            }
+        ]
+        mock_loader.predict.return_value = [
+            {'label': 'Positive', 'score': 0.9, 'probs': {'Positive': 0.9, 'Negative': 0.05, 'Neutral': 0.05}}
+        ]
+
+        pipeline._process_headlines(headlines, batch_size=1)
+
+        mock_loader.predict.assert_called_once_with(
+            ['Earnings beat expectations. Revenue up & margins improved'],
+            batch_size=1,
+        )
+
     def test_process_headlines_all_error_no_insert(self, pipeline, mock_dal, mock_loader):
         headlines = [
             {'id': 20, 'headline': 'Fail 1', 'ticker': 'AAPL'},

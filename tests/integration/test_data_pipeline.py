@@ -27,7 +27,8 @@ class MockNewsClient:
         return [
             {
                 **article,
-                "title": article["title"].format(query=query)
+                "title": article["title"].format(query=query),
+                "provider": article.get("provider", "mock"),
             }
             for article in self.articles
         ]
@@ -85,3 +86,45 @@ def test_data_pipeline_end_to_end(tmp_path, sample_prices, monkeypatch):
     stored_news = dal.get_news_by_ticker("MSFT")
     assert stored_news
     assert stored_news[0]["headline"] == "Mock News for MSFT"
+
+
+@pytest.mark.integration
+def test_news_ingestion_round_robin_cursor(tmp_path, monkeypatch):
+    db_path = tmp_path / "test_financial_advisor.db"
+    conn = sqlite3.connect(db_path)
+    create_tables(conn)
+    conn.close()
+
+    dal = DataAccessLayer(db_path=db_path)
+    dal.insert_ticker("AAA", "Ticker AAA")
+    dal.insert_ticker("BBB", "Ticker BBB")
+    dal.insert_ticker("CCC", "Ticker CCC")
+
+    mock_articles = [
+        {
+            "title": "Mock News for {query}",
+            "source": "Mock Finance",
+            "url": "https://example.com/mock",
+            "published_at": "2024-01-02 00:00:00",
+            "summary": "Mock summary",
+            "provider": "mock",
+        }
+    ]
+
+    def mock_get_news_client(provider="auto"):
+        return MockNewsClient(mock_articles)
+
+    monkeypatch.setattr(ingest_data, "get_news_client", mock_get_news_client)
+
+    ingest_data.ingest_news_data(dal, days=1, provider="auto", limit=1, max_tickers=2)
+
+    assert dal.get_user_preference("news_round_robin_cursor") == "2"
+    assert dal.get_news_by_ticker("AAA")
+    assert dal.get_news_by_ticker("BBB")
+    assert not dal.get_news_by_ticker("CCC")
+
+    ingest_data.ingest_news_data(dal, days=1, provider="auto", limit=1, max_tickers=2)
+
+    # Second run starts at cursor=2, so CCC then wraps to AAA.
+    assert dal.get_user_preference("news_round_robin_cursor") == "1"
+    assert dal.get_news_by_ticker("CCC")

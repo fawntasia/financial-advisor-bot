@@ -63,8 +63,13 @@ SCHEMA_SQL = """
         source TEXT,
         url TEXT,
         published_at TIMESTAMP,
+        summary TEXT,
+        provider TEXT,
         fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_news_headlines_dedupe
+    ON news_headlines(ticker, headline, published_at, COALESCE(url, ''));
 
     CREATE TABLE IF NOT EXISTS sentiment_scores (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -305,6 +310,12 @@ class TestDataAccessLayer:
         # DAL: ORDER BY published_at DESC
         assert news_items[0]["headline"] == "Another headline"
 
+        duplicate = dal.insert_news_headline(
+            "AAPL", "Another headline", "Reuters", "url", "2023-09-02"
+        )
+        assert duplicate is None
+        assert len(dal.get_news_by_ticker("AAPL")) == 2
+
     def test_get_unprocessed_news(self, dal):
         """Test retrieving news without sentiment scores."""
         dal.insert_ticker("AAPL", "Apple Inc.")
@@ -472,9 +483,9 @@ class TestDataAccessLayer:
     def test_migrations(self, dal):
         """Test migration version tracking."""
         current = dal.get_current_migration_version()
-        # Should be 0 initially or whatever we set in schema if we had inserted one
-        # Our manual schema init didn't insert a version, so 0 is expected
-        assert current == 0
-        
-        dal.record_migration(1, "Init")
-        assert dal.get_current_migration_version() == 1
+        # Runtime DAL upgrades now record migration v2 automatically.
+        assert current >= 2
+
+        next_version = current + 1
+        dal.record_migration(next_version, "Init")
+        assert dal.get_current_migration_version() == next_version

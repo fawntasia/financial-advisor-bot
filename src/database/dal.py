@@ -17,7 +17,8 @@ class DataAccessLayer:
     """Data Access Layer for database operations."""
     
     def __init__(self, db_path: Path = DATABASE_PATH):
-        self.db_path = db_path
+        self.db_path = Path(db_path)
+        self._apply_runtime_migrations()
     
     @contextmanager
     def get_connection(self):
@@ -28,6 +29,74 @@ class DataAccessLayer:
             yield conn
         finally:
             conn.close()
+
+    def _apply_runtime_migrations(self):
+        """
+        Apply lightweight schema upgrades required by runtime code.
+
+        This keeps existing databases compatible without requiring a manual
+        re-initialization step.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    version INTEGER UNIQUE,
+                    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    description TEXT
+                )
+                """
+            )
+
+            table_exists = cursor.execute(
+                """
+                SELECT 1
+                FROM sqlite_master
+                WHERE type = 'table' AND name = 'news_headlines'
+                """
+            ).fetchone()
+            if not table_exists:
+                conn.commit()
+                return
+
+            columns = {
+                row["name"]
+                for row in cursor.execute("PRAGMA table_info(news_headlines)").fetchall()
+            }
+
+            if "summary" not in columns:
+                cursor.execute("ALTER TABLE news_headlines ADD COLUMN summary TEXT")
+            if "provider" not in columns:
+                cursor.execute("ALTER TABLE news_headlines ADD COLUMN provider TEXT")
+
+            # Remove older duplicates before enforcing unique dedupe index.
+            cursor.execute(
+                """
+                DELETE FROM news_headlines
+                WHERE id NOT IN (
+                    SELECT MIN(id)
+                    FROM news_headlines
+                    GROUP BY ticker, headline, published_at, COALESCE(url, '')
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_news_headlines_dedupe
+                ON news_headlines(ticker, headline, published_at, COALESCE(url, ''))
+                """
+            )
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO schema_migrations (version, description)
+                VALUES (?, ?)
+                """,
+                (2, "Add news summary/provider columns and dedupe unique index"),
+            )
+            conn.commit()
     
     # ==================== Tickers ====================
     
@@ -144,17 +213,24 @@ class DataAccessLayer:
     # ==================== News Headlines ====================
     
     def insert_news_headline(self, ticker: str, headline: str, source: Optional[str] = None,
-                             url: Optional[str] = None, published_at: Optional[str] = None) -> Optional[int]:
-        """Insert a news headline and return its ID."""
+                             url: Optional[str] = None, published_at: Optional[str] = None,
+                             summary: Optional[str] = None, provider: Optional[str] = None) -> Optional[int]:
+        """
+        Insert a news headline and return its ID.
+
+        Returns None when the row is ignored by dedupe constraints.
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                """INSERT INTO news_headlines 
-                   (ticker, headline, source, url, published_at)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (ticker, headline, source, url, published_at)
+                """INSERT OR IGNORE INTO news_headlines
+                   (ticker, headline, source, url, published_at, summary, provider)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (ticker, headline, source, url, published_at, summary, provider),
             )
             conn.commit()
+            if cursor.rowcount == 0:
+                return None
             return cursor.lastrowid
     
     def get_news_by_ticker(self, ticker: str, limit: int = 100) -> List[Dict]:
@@ -168,6 +244,27 @@ class DataAccessLayer:
                    LIMIT ?""",
                 (ticker, limit)
             )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_recent_news(self, limit: int = 100, ticker: Optional[str] = None) -> List[Dict]:
+        """Get most recent news headlines with optional ticker filter."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if ticker:
+                cursor.execute(
+                    """SELECT * FROM news_headlines
+                       WHERE ticker = ?
+                       ORDER BY fetched_at DESC, published_at DESC
+                       LIMIT ?""",
+                    (ticker, limit),
+                )
+            else:
+                cursor.execute(
+                    """SELECT * FROM news_headlines
+                       ORDER BY fetched_at DESC, published_at DESC
+                       LIMIT ?""",
+                    (limit,),
+                )
             return [dict(row) for row in cursor.fetchall()]
 
     def get_unprocessed_news(self, limit: int = 1000) -> List[Dict]:

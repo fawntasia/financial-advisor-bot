@@ -12,6 +12,7 @@ from src.database.dal import DataAccessLayer
 from src.ui.chat import ChatManager
 from src.ui.views import (
     show_chat_interface,
+    show_data_pipeline,
     show_dashboard,
     show_disclaimer,
     show_stock_analysis,
@@ -200,7 +201,7 @@ def main():
 
     # Sidebar Navigation
     with st.sidebar:
-        st.markdown('<div class="sidebar-title">Antigravity Finance</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-title">Financial Advisor Bot</div>', unsafe_allow_html=True)
 
         st.subheader("Stock Search")
         _render_ticker_selector()
@@ -209,8 +210,12 @@ def main():
 
         # View Selection
         st.subheader("Navigation")
-        view_options = ["Dashboard", "Stock Analysis", "Chat Interface"]
-        selected_view = st.radio("Go to:", view_options, index=view_options.index(st.session_state.current_view))
+        view_options = ["Dashboard", "Stock Analysis", "Chat Interface", "Data Pipeline"]
+        current_view = st.session_state.current_view
+        if current_view not in view_options:
+            current_view = "Dashboard"
+            st.session_state.current_view = current_view
+        selected_view = st.radio("Go to:", view_options, index=view_options.index(current_view))
         st.session_state.current_view = selected_view
 
         st.markdown("---")
@@ -223,6 +228,8 @@ def main():
         show_stock_analysis()
     elif st.session_state.current_view == "Chat Interface":
         show_chat_interface()
+    elif st.session_state.current_view == "Data Pipeline":
+        show_data_pipeline()
 
     # Financial Disclaimer (Mandatory on all pages)
     show_disclaimer()

@@ -1,4 +1,6 @@
 import logging
+import re
+from html import unescape
 from typing import List, Dict, Optional
 import pandas as pd
 from datetime import datetime
@@ -61,7 +63,7 @@ class SentimentPipeline:
 
     def _process_headlines(self, headlines: List[Dict], batch_size: int):
         """Internal helper to process a list of headline records."""
-        texts = [h['headline'] for h in headlines]
+        texts = [self._build_sentiment_text(h) for h in headlines]
         ids = [h['id'] for h in headlines]
         
         predictions = self.loader.predict(texts, batch_size=batch_size)
@@ -83,6 +85,25 @@ class SentimentPipeline:
         if sentiment_records:
             self.dal.bulk_insert_sentiment_scores(sentiment_records)
             logger.info(f"Successfully stored {len(sentiment_records)} sentiment scores.")
+
+    @staticmethod
+    def _strip_simple_html(text: str) -> str:
+        """Strip basic HTML tags for cleaner sentiment input."""
+        cleaned = re.sub(r"<[^>]+>", " ", text)
+        cleaned = unescape(cleaned)
+        return " ".join(cleaned.split())
+
+    def _build_sentiment_text(self, headline_record: Dict) -> str:
+        """Combine headline + summary when available, fallback to headline only."""
+        headline = (headline_record.get("headline") or "").strip()
+        summary = (headline_record.get("summary") or "").strip()
+        if summary:
+            summary = self._strip_simple_html(summary)
+        if headline and summary:
+            return f"{headline}. {summary}"
+        if headline:
+            return headline
+        return summary
 
     def update_daily_aggregates(self, date: str):
         """

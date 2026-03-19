@@ -2,9 +2,12 @@
 
 from math import isnan
 from pathlib import Path
+from time import perf_counter
 
+import pandas as pd
 import streamlit as st
 
+from scripts.ingest_data import ingest_data, ingest_news_data
 from src.database.dal import DataAccessLayer
 from src.ui.charts import ChartGenerator
 from src.ui.classification_visualization import generate_classification_signal_data
@@ -212,3 +215,94 @@ def show_disclaimer():
         "The content provided here does not constitute financial, investment, tax, or legal advice. "
         "Investing in financial markets involves risks. Always consult with a qualified professional before making any investment decisions."
     )
+
+
+def show_data_pipeline():
+    """Render controls to run ingestion jobs and validate recent news ingestion output."""
+    st.header("Data Pipeline")
+    st.write("Run ingestion jobs from the UI and validate recent fetched financial news.")
+
+    dal = st.session_state.get("dal")
+    if dal is None:
+        dal = DataAccessLayer()
+        st.session_state.dal = dal
+
+    with st.container():
+        st.subheader("Run News Ingestion")
+        col1, col2 = st.columns(2)
+        with col1:
+            provider = st.selectbox(
+                "News Provider",
+                options=["auto", "rss", "newsapi", "alphavantage", "mock"],
+                index=0,
+                help="`auto` uses RSS first and API fallbacks when keys are available.",
+            )
+            days = st.number_input("Lookback Days", min_value=1, max_value=30, value=1, step=1)
+        with col2:
+            limit = st.number_input("Articles per Ticker", min_value=1, max_value=50, value=5, step=1)
+            max_tickers = st.number_input("Tickers per Run (Round-Robin)", min_value=1, max_value=503, value=25, step=1)
+
+        if st.button("Run News Ingestion Now", type="primary", use_container_width=True):
+            with st.spinner("Running news ingestion..."):
+                start = perf_counter()
+                stats = ingest_news_data(
+                    dal=dal,
+                    days=int(days),
+                    provider=provider,
+                    limit=int(limit),
+                    max_tickers=int(max_tickers),
+                )
+                elapsed = perf_counter() - start
+
+            st.success(f"News ingestion completed in {elapsed:.1f}s.")
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Tickers Selected", str(stats.get("selected_tickers", 0)))
+            m2.metric("Tickers Processed", str(stats.get("processed", 0)))
+            m3.metric("Inserted Articles", str(stats.get("records_inserted", 0)))
+            m4.metric("Duplicates Skipped", str(stats.get("duplicates", 0)))
+            st.caption(
+                f"Cursor moved: {stats.get('cursor_start', 0)} -> {stats.get('cursor_end', 0)} | "
+                f"Failed tickers: {stats.get('failed', 0)}"
+            )
+
+    st.markdown("---")
+    with st.expander("Optional: Run Full Pipeline (Stock + News)", expanded=False):
+        st.warning("This can take several minutes when many tickers need stock updates.")
+        if st.button("Run Full Pipeline", use_container_width=True):
+            with st.spinner("Running full pipeline..."):
+                start = perf_counter()
+                stats = ingest_data(
+                    news_days=int(days),
+                    news_provider=provider,
+                    news_limit=int(limit),
+                    news_max_tickers=int(max_tickers),
+                )
+                elapsed = perf_counter() - start
+
+            stock_stats = stats.get("stock", {}) or {}
+            news_stats = stats.get("news", {}) or {}
+            st.success(f"Full pipeline completed in {elapsed:.1f}s.")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Stocks Processed", str(stock_stats.get("processed", 0)))
+            c2.metric("Stock Rows Inserted", str(stock_stats.get("records_inserted", 0)))
+            c3.metric("News Rows Inserted", str(news_stats.get("records_inserted", 0)))
+
+    st.markdown("---")
+    st.subheader("Recent News Records")
+    ticker_filter = st.text_input("Filter by Ticker (optional)").upper().strip()
+    row_limit = st.slider("Rows to Display", min_value=10, max_value=300, value=50, step=10)
+
+    records = dal.get_recent_news(limit=int(row_limit), ticker=ticker_filter or None)
+    if not records:
+        st.info("No matching news records found yet. Run ingestion above to populate data.")
+        return
+
+    preview_df = pd.DataFrame(records)
+    columns = [
+        col
+        for col in ["fetched_at", "ticker", "provider", "source", "headline", "summary", "published_at", "url"]
+        if col in preview_df.columns
+    ]
+    if columns:
+        preview_df = preview_df[columns]
+    st.dataframe(preview_df, use_container_width=True, hide_index=True)
