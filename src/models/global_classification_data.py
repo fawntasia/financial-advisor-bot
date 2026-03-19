@@ -81,26 +81,20 @@ def _label_within_split(
             labeled_df=split_df.copy(),
         )
 
-    labeled_groups: List[pd.DataFrame] = []
-    for _, grp in split_df.groupby("ticker", sort=False):
-        grp_sorted = grp.sort_values("date").copy()
-        if len(grp_sorted) < 2:
-            continue
-        grp_sorted["Target"] = (grp_sorted[target_col].shift(-1) > grp_sorted[target_col]).astype(int)
-        grp_sorted = grp_sorted.iloc[:-1].copy()
-        if grp_sorted.empty:
-            continue
-        labeled_groups.append(grp_sorted)
-
-    if not labeled_groups:
+    # Keep a globally chronological row order so downstream TimeSeriesSplit
+    # operates on time-ordered samples across the pooled universe.
+    labeled_df = split_df.sort_values(["date", "ticker"]).copy()
+    labeled_df["_next_close"] = labeled_df.groupby("ticker", sort=False)[target_col].shift(-1)
+    labeled_df = labeled_df[labeled_df["_next_close"].notna()].copy()
+    if labeled_df.empty:
         return SplitPayload(
             X=np.empty((0, len(feature_cols))),
             y=np.empty((0,), dtype=np.int64),
             ticker_labels=np.empty((0,), dtype=object),
             labeled_df=split_df.iloc[0:0].copy(),
         )
-
-    labeled_df = pd.concat(labeled_groups, axis=0, ignore_index=True)
+    labeled_df["Target"] = (labeled_df["_next_close"] > labeled_df[target_col]).astype(np.int64)
+    labeled_df = labeled_df.drop(columns=["_next_close"]).reset_index(drop=True)
     X = labeled_df[list(feature_cols)].values
     y = labeled_df["Target"].values.astype(np.int64)
     ticker_labels = labeled_df["ticker"].values.astype(object)

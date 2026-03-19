@@ -46,7 +46,10 @@ All splits are chronological to reduce leakage.
 - Sequence construction:
   - Train sequences from ticker train partition.
   - Test sequences include train tail context (`sequence_length`) to preserve continuity.
-- A dedicated validation split is carved from aggregated training sequences (`--val-split`, default `0.1`) and used for early stopping, while the test split remains held out for final evaluation.
+- Validation is now carved **per ticker** from the latest training-sequence dates (`--val-split`, default `0.1`) before pooling.
+  - This prevents validation composition from depending on ticker concatenation order.
+  - For each ticker, validation dates are strictly after that ticker's fit-training dates.
+- The dedicated validation split is used for early stopping, while the test split remains held out for final evaluation.
 - Final model sees one aggregated dataset across all included tickers.
 
 ### RF/XGB Split Logic (Leakage-Safe)
@@ -82,6 +85,7 @@ All splits are chronological to reduce leakage.
 ### Random Forest
 - **Estimator**: `RandomForestClassifier`.
 - **Tuning**: `RandomizedSearchCV` with `TimeSeriesSplit` and `balanced_accuracy` scoring.
+  - Pooled training rows are kept in global chronological order (`date`, then `ticker`) before conversion to arrays so CV folds remain time-ordered.
 - **Class imbalance**: hyperparameter search includes `class_weight` options.
 - **Thresholding**: validation-based threshold tuning uses balanced accuracy in global pooled mode.
 - **Feature Importance**: extracted post-training for interpretability.
@@ -93,6 +97,7 @@ All splits are chronological to reduce leakage.
 ### XGBoost
 - **Estimator**: `XGBClassifier`.
 - **Early Stopping**: Enabled with dedicated validation split and `early_stopping_rounds=10`.
+- Pooled training rows are kept in global chronological order (`date`, then `ticker`) before conversion to arrays so `TimeSeriesSplit` remains time-ordered.
 - **Regularization/Tuning Search**:
   - `min_child_weight`, `gamma`, `reg_alpha`, `reg_lambda`
   - plus core tree/learning-rate/subsample parameters and `scale_pos_weight`

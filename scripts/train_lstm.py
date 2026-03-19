@@ -21,16 +21,60 @@ from src.models.reproducibility import set_global_seeds
 FEATURE_COLS = ["Close", "SMA_20", "SMA_50", "RSI", "MACD", "Signal_Line"]
 
 
-def _create_sequences(dataset: np.ndarray, sequence_length: int, target_idx: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Create sliding window sequences from scaled features."""
+def _create_sequences(
+    dataset: np.ndarray,
+    sequence_length: int,
+    target_idx: int,
+    target_dates: Optional[np.ndarray] = None,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Create sliding window sequences from scaled features with aligned target dates."""
     X, y = [], []
+    seq_dates = []
     for i in range(sequence_length, len(dataset)):
         X.append(dataset[i - sequence_length : i, :])
         y.append(dataset[i, target_idx])
+        if target_dates is not None:
+            seq_dates.append(target_dates[i])
 
     if not X:
-        return np.array([]), np.array([])
-    return np.array(X, dtype=np.float32), np.array(y, dtype=np.float32)
+        empty_dates = np.array([], dtype="datetime64[ns]")
+        return np.array([]), np.array([]), empty_dates
+    if target_dates is None:
+        seq_dates_arr = np.array([], dtype="datetime64[ns]")
+    else:
+        seq_dates_arr = np.array(seq_dates, dtype="datetime64[ns]")
+    return np.array(X, dtype=np.float32), np.array(y, dtype=np.float32), seq_dates_arr
+
+
+def _split_sequences_by_date(
+    X_seq: np.ndarray,
+    y_seq: np.ndarray,
+    seq_dates: np.ndarray,
+    val_split: float,
+) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+    """Split a single ticker's sequences into chronological fit/validation segments."""
+    if len(X_seq) < 2:
+        return None
+    unique_dates = np.unique(seq_dates)
+    if len(unique_dates) < 2:
+        return None
+
+    val_date_count = max(1, int(len(unique_dates) * val_split))
+    val_date_count = min(val_date_count, len(unique_dates) - 1)
+    val_start_date = unique_dates[-val_date_count]
+    val_mask = seq_dates >= val_start_date
+    fit_mask = ~val_mask
+    if fit_mask.sum() < 1 or val_mask.sum() < 1:
+        return None
+
+    return (
+        X_seq[fit_mask],
+        y_seq[fit_mask],
+        X_seq[val_mask],
+        y_seq[val_mask],
+        seq_dates[fit_mask],
+        seq_dates[val_mask],
+    )
 
 
 def _prepare_ticker_sequences(
@@ -38,6 +82,7 @@ def _prepare_ticker_sequences(
     raw_prices: pd.DataFrame,
     sequence_length: int,
     train_split: float,
+    val_split: float,
 ) -> Optional[Dict]:
     """
     Prepare per-ticker train/test sequences from market prices.
@@ -73,39 +118,108 @@ def _prepare_ticker_sequences(
 
     target_idx = FEATURE_COLS.index("Close")
 
-    X_train, y_train = _create_sequences(train_scaled, sequence_length, target_idx)
+    train_target_dates = pd.to_datetime(train_df.index).to_numpy(dtype="datetime64[ns]")
+    test_target_dates = pd.to_datetime(test_df.index).to_numpy(dtype="datetime64[ns]")
+
+    X_train, y_train, train_dates = _create_sequences(
+        train_scaled,
+        sequence_length,
+        target_idx,
+        target_dates=train_target_dates,
+    )
     if X_train.size == 0:
         return None
+    split_result = _split_sequences_by_date(
+        X_seq=X_train,
+        y_seq=y_train,
+        seq_dates=train_dates,
+        val_split=val_split,
+    )
+    if split_result is None:
+        return None
+    X_train_fit, y_train_fit, X_val, y_val, train_fit_dates, val_dates = split_result
 
     test_context = np.vstack([train_scaled[-sequence_length:], test_scaled])
-    X_test, y_test = _create_sequences(test_context, sequence_length, target_idx)
+    test_context_dates = np.concatenate([train_target_dates[-sequence_length:], test_target_dates])
+    X_test, y_test, test_dates = _create_sequences(
+        test_context,
+        sequence_length,
+        target_idx,
+        target_dates=test_context_dates,
+    )
 
     if X_test.size == 0:
         return None
 
     return {
         "ticker": ticker,
-        "X_train": X_train,
-        "y_train": y_train,
+        "X_train_fit": X_train_fit,
+        "y_train_fit": y_train_fit,
+        "train_fit_dates": train_fit_dates,
+        "X_val": X_val,
+        "y_val": y_val,
+        "val_dates": val_dates,
         "X_test": X_test,
         "y_test": y_test,
+        "test_dates": test_dates,
         "feature_scaler": feature_scaler,
         "target_scaler": target_scaler,
     }
 
 
-def _aggregate_sequences(per_ticker_batches: List[Dict]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def _aggregate_sequences(
+    per_ticker_batches: List[Dict],
+) -> Tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+]:
     """Stack all per-ticker arrays into a single global training set."""
-    X_train = np.concatenate([b["X_train"] for b in per_ticker_batches], axis=0).astype(np.float32)
-    y_train = np.concatenate([b["y_train"] for b in per_ticker_batches], axis=0).astype(np.float32)
+    X_train = np.concatenate([b["X_train_fit"] for b in per_ticker_batches], axis=0).astype(np.float32)
+    y_train = np.concatenate([b["y_train_fit"] for b in per_ticker_batches], axis=0).astype(np.float32)
+    train_dates = np.concatenate([b["train_fit_dates"] for b in per_ticker_batches], axis=0)
+    train_ticker_labels = np.concatenate(
+        [np.array([b["ticker"]] * len(b["y_train_fit"]), dtype=object) for b in per_ticker_batches],
+        axis=0,
+    )
+    X_val = np.concatenate([b["X_val"] for b in per_ticker_batches], axis=0).astype(np.float32)
+    y_val = np.concatenate([b["y_val"] for b in per_ticker_batches], axis=0).astype(np.float32)
+    val_dates = np.concatenate([b["val_dates"] for b in per_ticker_batches], axis=0)
+    val_ticker_labels = np.concatenate(
+        [np.array([b["ticker"]] * len(b["y_val"]), dtype=object) for b in per_ticker_batches],
+        axis=0,
+    )
     X_test = np.concatenate([b["X_test"] for b in per_ticker_batches], axis=0).astype(np.float32)
     y_test = np.concatenate([b["y_test"] for b in per_ticker_batches], axis=0).astype(np.float32)
+    test_dates = np.concatenate([b["test_dates"] for b in per_ticker_batches], axis=0)
 
     test_ticker_labels = np.concatenate(
         [np.array([b["ticker"]] * len(b["y_test"]), dtype=object) for b in per_ticker_batches],
         axis=0,
     )
-    return X_train, y_train, X_test, y_test, test_ticker_labels
+    return (
+        X_train,
+        y_train,
+        train_dates,
+        train_ticker_labels,
+        X_val,
+        y_val,
+        val_dates,
+        val_ticker_labels,
+        X_test,
+        y_test,
+        test_dates,
+        test_ticker_labels,
+    )
 
 
 def train_lstm(
@@ -133,6 +247,8 @@ def train_lstm(
     tf_seed_status = set_global_seeds(seed=seed, include_tensorflow=True)
     if tf_seed_status:
         print(f"Seed status: {tf_seed_status}")
+    if not 0 < val_split < 1:
+        raise ValueError("val_split must be between 0 and 1.")
 
     if ticker.upper() == "ALL":
         selected_tickers = load_ticker_universe(db_path=db_path)
@@ -168,6 +284,7 @@ def train_lstm(
             raw_prices=market_df,
             sequence_length=sequence_length,
             train_split=train_split,
+            val_split=val_split,
         )
 
         if batch is None:
@@ -178,18 +295,20 @@ def train_lstm(
     if not per_ticker_batches:
         raise ValueError("No ticker produced valid LSTM sequences. Check data coverage.")
 
-    X_train, y_train, X_test, y_test, test_ticker_labels = _aggregate_sequences(per_ticker_batches)
-
-    if not 0 < val_split < 1:
-        raise ValueError("val_split must be between 0 and 1.")
-    val_size = max(1, int(len(X_train) * val_split))
-    if len(X_train) - val_size < 1:
-        raise ValueError("Not enough training sequences to create a separate validation split.")
-
-    X_train_fit = X_train[:-val_size]
-    y_train_fit = y_train[:-val_size]
-    X_val = X_train[-val_size:]
-    y_val = y_train[-val_size:]
+    (
+        X_train,
+        y_train,
+        train_dates,
+        train_ticker_labels,
+        X_val,
+        y_val,
+        val_dates,
+        val_ticker_labels,
+        X_test,
+        y_test,
+        _test_dates,
+        test_ticker_labels,
+    ) = _aggregate_sequences(per_ticker_batches)
 
     used_tickers = [b["ticker"] for b in per_ticker_batches]
     scaler_by_ticker = {
@@ -201,11 +320,19 @@ def train_lstm(
     }
 
     print(f"Tickers used: {len(used_tickers)} / {len(selected_tickers)}")
-    print(f"Train shape: {X_train_fit.shape}")
+    print(
+        "Train date range: "
+        f"{pd.Timestamp(train_dates.min()).date()} -> {pd.Timestamp(train_dates.max()).date()}"
+    )
+    print(
+        "Validation date range: "
+        f"{pd.Timestamp(val_dates.min()).date()} -> {pd.Timestamp(val_dates.max()).date()}"
+    )
+    print(f"Train shape: {X_train.shape}")
     print(f"Validation shape: {X_val.shape}")
     print(f"Test shape: {X_test.shape}")
 
-    model = LSTMModel(sequence_length=sequence_length, n_features=X_train_fit.shape[2])
+    model = LSTMModel(sequence_length=sequence_length, n_features=X_train.shape[2])
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_tag = "all" if ticker.upper() == "ALL" else ticker.upper()
@@ -214,8 +341,8 @@ def train_lstm(
 
     print("Training model...")
     train_result = model.train(
-        X_train_fit,
-        y_train_fit,
+        X_train,
+        y_train,
         X_test=X_test,
         y_test=y_test,
         epochs=epochs,
@@ -266,10 +393,21 @@ def train_lstm(
         "skipped_tickers": skipped,
         "sequence_length": sequence_length,
         "feature_columns": FEATURE_COLS,
-        "train_shape": list(X_train_fit.shape),
+        "train_shape": list(X_train.shape),
         "validation_shape": list(X_val.shape),
         "test_shape": list(X_test.shape),
         "validation_split": val_split,
+        "validation_split_basis": "per_ticker_latest_train_dates",
+        "train_date_range": {
+            "start": pd.Timestamp(train_dates.min()).strftime("%Y-%m-%d"),
+            "end": pd.Timestamp(train_dates.max()).strftime("%Y-%m-%d"),
+        },
+        "validation_date_range": {
+            "start": pd.Timestamp(val_dates.min()).strftime("%Y-%m-%d"),
+            "end": pd.Timestamp(val_dates.max()).strftime("%Y-%m-%d"),
+        },
+        "train_ticker_count": int(np.unique(train_ticker_labels).size),
+        "validation_ticker_count": int(np.unique(val_ticker_labels).size),
         "seed": seed,
         "global_test_mse_scaled": test_mse,
         "avg_per_ticker_rmse_price": avg_rmse,
@@ -302,6 +440,7 @@ def train_lstm(
         "split_config": {
             "train_split": train_split,
             "val_split": val_split,
+            "validation_split_basis": "per_ticker_latest_train_dates",
             "sequence_length": sequence_length,
             "batch_size": batch_size,
             "epochs": epochs,

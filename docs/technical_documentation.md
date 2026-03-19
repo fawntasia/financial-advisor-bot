@@ -147,7 +147,9 @@ Model scripts now use normalized flag names:
 - Walk-forward validation supports RF, XGB, and LSTM (`scripts/run_walkforward.py`).
 - Walk-forward now instantiates a fresh model per fold via `model_factory` to avoid cross-fold state carryover.
 - Classification target generation is split-safe: train/validation/test targets are generated within each split to prevent boundary leakage.
+- Global pooled RF/XGB training preserves chronological row order (`date`, `ticker`) after split-safe labeling so `TimeSeriesSplit` is applied on time-ordered samples.
 - RF/XGB global training uses validation-driven threshold selection based on balanced accuracy and reports expanded metrics (accuracy, balanced accuracy, precision, recall, F1, ROC-AUC).
+- LSTM global training now derives validation chronologically per ticker (latest train-sequence dates per ticker before pooling), preventing validation from being biased by ticker concatenation order.
 - LSTM, RF, and XGB scripts expose seed controls and store richer run metadata for reproducibility.
 - Model scripts are DB-first by default and only use live yfinance when explicitly requested.
 - Model artifacts are saved locally under `models/`; scripts do not automatically register LSTM outputs into `predictions`/`model_performance` tables.
