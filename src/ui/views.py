@@ -4,6 +4,7 @@ from datetime import datetime
 from math import isnan
 from pathlib import Path
 from time import perf_counter
+from typing import Dict, List, Optional
 
 import pandas as pd
 import streamlit as st
@@ -39,6 +40,32 @@ def _format_decimal(value, digits: int = 3) -> str:
     if isnan(numeric):
         return "N/A"
     return f"{numeric:.{digits}f}"
+
+
+def _format_currency(value, digits: int = 2) -> str:
+    """Format numeric value as USD text, or N/A when unavailable."""
+    if value is None:
+        return "N/A"
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    if isnan(numeric):
+        return "N/A"
+    return f"${numeric:.{digits}f}"
+
+
+def _format_signed_percent(value, digits: int = 2) -> str:
+    """Format a decimal ratio as signed percentage text."""
+    if value is None:
+        return "N/A"
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    if isnan(numeric):
+        return "N/A"
+    return f"{numeric:+.{digits}%}"
 
 
 def _signed_sentiment_score(avg_positive, avg_negative) -> float:
@@ -88,6 +115,205 @@ def _run_sentiment_job(
         return pipeline.process_date(date=date_str, batch_size=batch_size)
 
     return pipeline.process_unprocessed(batch_size=batch_size, limit=limit)
+
+
+def _empty_market_snapshot() -> Dict:
+    """Return default structure for market snapshot rendering."""
+    return {
+        "latest_date": None,
+        "tracked_tickers": 0,
+        "tickers_with_prices": 0,
+        "tickers_with_returns": 0,
+        "advancers": 0,
+        "decliners": 0,
+        "unchanged": 0,
+        "breadth_ratio": None,
+        "cross_sectional_volatility": None,
+        "average_move": None,
+        "median_move": None,
+        "top_gainers": [],
+        "top_losers": [],
+    }
+
+
+def _fetch_market_snapshot(dal: DataAccessLayer) -> Dict:
+    """Build market breadth + top mover snapshot from latest stock prices."""
+    with dal.get_connection() as conn:
+        ticker_count_df = pd.read_sql_query(
+            "SELECT COUNT(*) AS count FROM tickers",
+            conn,
+        )
+        tracked_tickers = int(ticker_count_df.iloc[0]["count"]) if not ticker_count_df.empty else 0
+
+        latest_df = pd.read_sql_query(
+            """
+            WITH latest_market_date AS (
+                SELECT MAX(date) AS latest_date
+                FROM stock_prices
+            ),
+            latest_prices AS (
+                SELECT
+                    s.ticker,
+                    s.date,
+                    s.close,
+                    LAG(s.close) OVER (
+                        PARTITION BY s.ticker
+                        ORDER BY s.date
+                    ) AS prev_close
+                FROM stock_prices s
+            )
+            SELECT
+                lp.ticker,
+                lp.date,
+                lp.close,
+                lp.prev_close,
+                CASE
+                    WHEN lp.prev_close IS NULL OR lp.prev_close = 0 THEN NULL
+                    ELSE (lp.close - lp.prev_close) / lp.prev_close
+                END AS pct_change
+            FROM latest_prices lp
+            JOIN latest_market_date lm
+                ON lp.date = lm.latest_date
+            """,
+            conn,
+        )
+
+    if latest_df.empty:
+        snapshot = _empty_market_snapshot()
+        snapshot["tracked_tickers"] = tracked_tickers
+        return snapshot
+
+    latest_df["pct_change"] = pd.to_numeric(latest_df["pct_change"], errors="coerce")
+    latest_df["close"] = pd.to_numeric(latest_df["close"], errors="coerce")
+    valid_returns = latest_df.dropna(subset=["pct_change"]).copy()
+
+    total = int(len(valid_returns))
+    advancers = int((valid_returns["pct_change"] > 0).sum()) if total else 0
+    decliners = int((valid_returns["pct_change"] < 0).sum()) if total else 0
+    unchanged = max(total - advancers - decliners, 0)
+
+    top_gainers: List[Dict] = []
+    top_losers: List[Dict] = []
+    if total:
+        top_n = 10
+        top_gainers = valid_returns.nlargest(top_n, "pct_change")[["ticker", "close", "pct_change"]].to_dict("records")
+        top_losers = valid_returns.nsmallest(top_n, "pct_change")[["ticker", "close", "pct_change"]].to_dict("records")
+
+    return {
+        "latest_date": str(latest_df["date"].max()) if "date" in latest_df.columns else None,
+        "tracked_tickers": tracked_tickers,
+        "tickers_with_prices": int(latest_df["ticker"].nunique()),
+        "tickers_with_returns": int(valid_returns["ticker"].nunique()),
+        "advancers": advancers,
+        "decliners": decliners,
+        "unchanged": unchanged,
+        "breadth_ratio": (advancers / total) if total else None,
+        "cross_sectional_volatility": float(valid_returns["pct_change"].std(ddof=0)) if total else None,
+        "average_move": float(valid_returns["pct_change"].mean()) if total else None,
+        "median_move": float(valid_returns["pct_change"].median()) if total else None,
+        "top_gainers": top_gainers,
+        "top_losers": top_losers,
+    }
+
+
+def _sentiment_label_from_score(score: Optional[float]) -> str:
+    """Map signed sentiment score to a directional label."""
+    if score is None:
+        return "N/A"
+    try:
+        numeric = float(score)
+    except (TypeError, ValueError):
+        return "N/A"
+    if isnan(numeric):
+        return "N/A"
+    if numeric >= 0.05:
+        return "Bullish"
+    if numeric <= -0.05:
+        return "Bearish"
+    return "Neutral"
+
+
+def _empty_sentiment_snapshot() -> Dict:
+    """Return default structure for global sentiment rendering."""
+    return {
+        "date": None,
+        "ticker_count": 0,
+        "news_count": 0,
+        "avg_confidence": None,
+        "avg_net_score": None,
+        "weighted_net_score": None,
+        "label": "N/A",
+    }
+
+
+def _fetch_global_sentiment_snapshot(dal: DataAccessLayer) -> Dict:
+    """Build a global sentiment snapshot from the latest aggregate day."""
+    with dal.get_connection() as conn:
+        sentiment_df = pd.read_sql_query(
+            """
+            WITH latest_sentiment_date AS (
+                SELECT MAX(date) AS latest_date
+                FROM daily_sentiment
+            )
+            SELECT
+                ls.latest_date AS date,
+                COUNT(*) AS ticker_count,
+                COALESCE(SUM(COALESCE(ds.news_count, 0)), 0) AS news_count,
+                AVG(ds.confidence) AS avg_confidence,
+                AVG(ds.avg_positive - ds.avg_negative) AS avg_net_score,
+                CASE
+                    WHEN SUM(COALESCE(ds.news_count, 0)) > 0 THEN
+                        SUM((ds.avg_positive - ds.avg_negative) * COALESCE(ds.news_count, 0))
+                        / SUM(COALESCE(ds.news_count, 0))
+                    ELSE AVG(ds.avg_positive - ds.avg_negative)
+                END AS weighted_net_score
+            FROM daily_sentiment ds
+            JOIN latest_sentiment_date ls
+                ON ds.date = ls.latest_date
+            GROUP BY ls.latest_date
+            """,
+            conn,
+        )
+
+    if sentiment_df.empty:
+        return _empty_sentiment_snapshot()
+
+    row = sentiment_df.iloc[0]
+    weighted_score = row.get("weighted_net_score")
+
+    return {
+        "date": str(row.get("date")) if row.get("date") is not None else None,
+        "ticker_count": int(row.get("ticker_count") or 0),
+        "news_count": int(row.get("news_count") or 0),
+        "avg_confidence": row.get("avg_confidence"),
+        "avg_net_score": row.get("avg_net_score"),
+        "weighted_net_score": weighted_score,
+        "label": _sentiment_label_from_score(weighted_score),
+    }
+
+
+def _fetch_recent_scored_headlines(dal: DataAccessLayer, limit: int = 5) -> List[Dict]:
+    """Get latest scored headlines across all tickers for dashboard feed."""
+    with dal.get_connection() as conn:
+        headlines_df = pd.read_sql_query(
+            """
+            SELECT
+                h.ticker,
+                h.headline,
+                h.source,
+                h.published_at,
+                s.sentiment_label,
+                s.confidence
+            FROM news_headlines h
+            JOIN sentiment_scores s
+                ON h.id = s.news_id
+            ORDER BY COALESCE(h.published_at, h.fetched_at) DESC
+            LIMIT ?
+            """,
+            conn,
+            params=[int(limit)],
+        )
+    return headlines_df.to_dict("records")
 
 
 def _render_lstm_tab(ticker: str, dal: DataAccessLayer, chart_generator: ChartGenerator):
@@ -375,28 +601,121 @@ def show_dashboard():
     st.header("Market Dashboard")
     st.write("Overview of S&P 500 and your tracked assets.")
 
+    dal = st.session_state.get("dal")
+    if dal is None:
+        dal = DataAccessLayer()
+        st.session_state.dal = dal
+
+    market_snapshot = _empty_market_snapshot()
+    sentiment_snapshot = _empty_sentiment_snapshot()
+    recent_headlines: List[Dict] = []
+
     with st.status("Loading market data...", expanded=True) as status:
-        st.write("Fetching S&P 500 index...")
-        st.write("Analyzing market volatility...")
-        st.write("Calculating global sentiment...")
+        st.write("Loading latest S&P 500 breadth snapshot from stock prices...")
+        try:
+            market_snapshot = _fetch_market_snapshot(dal)
+        except Exception as exc:
+            st.warning(f"Stock dashboard metrics unavailable: {exc}")
+
+        st.write("Loading aggregated global news sentiment...")
+        try:
+            sentiment_snapshot = _fetch_global_sentiment_snapshot(dal)
+        except Exception as exc:
+            st.warning(f"Sentiment dashboard metrics unavailable: {exc}")
+
+        st.write("Loading latest scored headlines feed...")
+        try:
+            recent_headlines = _fetch_recent_scored_headlines(dal, limit=5)
+        except Exception as exc:
+            st.warning(f"Scored headlines feed unavailable: {exc}")
+
         status.update(label="Market Data Loaded", state="complete", expanded=False)
 
-    st.info("Placeholder: Global market trends, top gainers/losers, and news feed.")
-
     col1, col2, col3 = st.columns(3)
-    col1.metric("S&P 500", "5,000.00", "+1.2%", help="Standard & Poor's 500 Index tracking 500 large companies.")
+    col1.metric(
+        "S&P 500 Breadth",
+        _format_ratio(market_snapshot.get("breadth_ratio")),
+        f"{market_snapshot.get('advancers', 0)} up / {market_snapshot.get('decliners', 0)} down",
+        help="Share of S&P 500 tickers that closed higher on the latest market date in your database.",
+    )
     col2.metric(
         "Market Volatility",
-        "15.4",
-        "-2.1%",
-        help="VIX Index measuring market expectations of near-term volatility.",
+        _format_ratio(market_snapshot.get("cross_sectional_volatility")),
+        _format_signed_percent(market_snapshot.get("average_move")),
+        help="Cross-sectional volatility of latest daily returns across tracked S&P 500 tickers.",
     )
     col3.metric(
         "Sentiment Score",
-        "0.65",
-        "Bullish",
-        help="Aggregated sentiment score from financial news (0-1).",
+        _format_decimal(sentiment_snapshot.get("weighted_net_score"), digits=3),
+        sentiment_snapshot.get("label", "N/A"),
+        help="Latest weighted net sentiment from daily FinBERT aggregates (avg_positive - avg_negative).",
     )
+
+    st.caption(
+        f"Latest stock date: `{market_snapshot.get('latest_date') or 'N/A'}` | "
+        f"Tickers covered: `{market_snapshot.get('tickers_with_prices', 0)}/{market_snapshot.get('tracked_tickers', 0)}` | "
+        f"Latest sentiment date: `{sentiment_snapshot.get('date') or 'N/A'}` | "
+        f"Sentiment tickers: `{sentiment_snapshot.get('ticker_count', 0)}` | "
+        f"Headlines in sentiment snapshot: `{sentiment_snapshot.get('news_count', 0)}`"
+    )
+
+    movers_col1, movers_col2, movers_col3 = st.columns(3)
+    top_gainer = (market_snapshot.get("top_gainers") or [{}])[0]
+    top_loser = (market_snapshot.get("top_losers") or [{}])[0]
+    movers_col1.metric(
+        "Top Gainer",
+        str(top_gainer.get("ticker", "N/A")),
+        _format_signed_percent(top_gainer.get("pct_change")),
+    )
+    movers_col2.metric(
+        "Top Loser",
+        str(top_loser.get("ticker", "N/A")),
+        _format_signed_percent(top_loser.get("pct_change")),
+    )
+    movers_col3.metric(
+        "Sentiment Confidence",
+        _format_ratio(sentiment_snapshot.get("avg_confidence")),
+        f"{sentiment_snapshot.get('news_count', 0)} headlines",
+    )
+
+    st.subheader("Top Movers")
+    top_gainers = market_snapshot.get("top_gainers") or []
+    top_losers = market_snapshot.get("top_losers") or []
+    if top_gainers:
+        st.write("Top Gainers (latest session):")
+        for idx, row in enumerate(top_gainers, start=1):
+            st.write(
+                f"{idx}. {row.get('ticker', 'N/A')} | "
+                f"{_format_signed_percent(row.get('pct_change'))} | "
+                f"{_format_currency(row.get('close'))}"
+            )
+    else:
+        st.write("Top Gainers (latest session): N/A")
+
+    if top_losers:
+        st.write("Top Losers (latest session):")
+        for idx, row in enumerate(top_losers, start=1):
+            st.write(
+                f"{idx}. {row.get('ticker', 'N/A')} | "
+                f"{_format_signed_percent(row.get('pct_change'))} | "
+                f"{_format_currency(row.get('close'))}"
+            )
+    else:
+        st.write("Top Losers (latest session): N/A")
+
+    st.subheader("Latest Scored Headlines")
+    if not recent_headlines:
+        st.info("No scored headlines available yet. Run news ingestion and sentiment analysis to populate this feed.")
+        return
+
+    for row in recent_headlines:
+        ticker = str(row.get("ticker") or "N/A")
+        label = str(row.get("sentiment_label") or "N/A")
+        confidence = _format_ratio(row.get("confidence"))
+        headline = str(row.get("headline") or "").strip()
+        if not headline:
+            continue
+        st.write(f"[{ticker}] {label} ({confidence}) | {headline}")
 
 
 def show_disclaimer():

@@ -372,18 +372,75 @@ def test_show_chat_interface_without_manager():
     assert ("error", "Chat Manager not initialized. Please check the application setup.") in fake_st.calls
 
 
-def test_show_dashboard_updates_status_and_metrics():
+def test_show_dashboard_updates_status_and_metrics(monkeypatch):
     fake_st = FakeStreamlit()
+    fake_st.session_state["dal"] = object()
     views = _load_views(fake_st)
+
+    monkeypatch.setattr(
+        views,
+        "_fetch_market_snapshot",
+        lambda dal: {
+            "latest_date": "2024-01-05",
+            "tracked_tickers": 503,
+            "tickers_with_prices": 500,
+            "tickers_with_returns": 498,
+            "advancers": 290,
+            "decliners": 180,
+            "unchanged": 28,
+            "breadth_ratio": 290 / 498,
+            "cross_sectional_volatility": 0.018,
+            "average_move": 0.003,
+            "median_move": 0.001,
+            "top_gainers": [{"ticker": "NVDA", "pct_change": 0.041, "close": 850.0}],
+            "top_losers": [{"ticker": "TSLA", "pct_change": -0.033, "close": 190.0}],
+        },
+    )
+    monkeypatch.setattr(
+        views,
+        "_fetch_global_sentiment_snapshot",
+        lambda dal: {
+            "date": "2024-01-05",
+            "ticker_count": 42,
+            "news_count": 130,
+            "avg_confidence": 0.74,
+            "avg_net_score": 0.08,
+            "weighted_net_score": 0.11,
+            "label": "Bullish",
+        },
+    )
+    monkeypatch.setattr(
+        views,
+        "_fetch_recent_scored_headlines",
+        lambda dal, limit=5: [
+            {
+                "ticker": "AAPL",
+                "headline": "Apple expands AI features",
+                "sentiment_label": "positive",
+                "confidence": 0.81,
+            }
+        ],
+    )
 
     views.show_dashboard()
 
     assert any(call[0] == "header" and "Market Dashboard" in call[1] for call in fake_st.calls)
     assert ("status", "Loading market data...", True) in fake_st.calls
     assert ("status.update", {"label": "Market Data Loaded", "state": "complete", "expanded": False}) in fake_st.calls
-    assert ("columns", 3) in fake_st.calls
+    assert fake_st.calls.count(("columns", 3)) >= 2
     metric_calls = [call for call in fake_st.calls if call[0] == "column.metric"]
-    assert [call[2] for call in metric_calls] == ["S&P 500", "Market Volatility", "Sentiment Score"]
+    metric_labels = [call[2] for call in metric_calls]
+    assert "S&P 500 Breadth" in metric_labels
+    assert "Market Volatility" in metric_labels
+    assert "Sentiment Score" in metric_labels
+    assert "Top Gainer" in metric_labels
+    assert "Top Loser" in metric_labels
+    assert "Sentiment Confidence" in metric_labels
+    assert any(call[0] == "subheader" and "Top Movers" in call[1] for call in fake_st.calls)
+    assert any(call[0] == "write" and "Top Gainers (latest session):" in call[1] for call in fake_st.calls)
+    assert any(call[0] == "write" and "Top Losers (latest session):" in call[1] for call in fake_st.calls)
+    assert any(call[0] == "subheader" and "Latest Scored Headlines" in call[1] for call in fake_st.calls)
+    assert any(call[0] == "write" and "[AAPL]" in call[1] for call in fake_st.calls)
 
 
 def test_show_disclaimer_renders_text():
