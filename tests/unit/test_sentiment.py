@@ -55,20 +55,23 @@ class TestSentimentPipeline:
     def test_process_unprocessed(self, pipeline, mock_dal, mock_loader):
         # Setup mock data
         mock_dal.get_unprocessed_news.return_value = [
-            {'id': 1, 'headline': 'Good news', 'ticker': 'AAPL'},
-            {'id': 2, 'headline': 'Bad news', 'ticker': 'MSFT'}
+            {'id': 1, 'headline': 'Good news', 'ticker': 'AAPL', 'published_at': '2023-01-01 10:00:00'},
+            {'id': 2, 'headline': 'Bad news', 'ticker': 'MSFT', 'published_at': '2023-01-02 11:00:00'}
         ]
         
         mock_loader.predict.return_value = [
             {'label': 'Positive', 'score': 0.9, 'probs': {'Positive': 0.9, 'Negative': 0.05, 'Neutral': 0.05}},
             {'label': 'Negative', 'score': 0.8, 'probs': {'Positive': 0.1, 'Negative': 0.8, 'Neutral': 0.1}}
         ]
-        
-        pipeline.process_unprocessed(batch_size=2)
+
+        with patch.object(pipeline, 'update_daily_aggregates') as mock_update:
+            stats = pipeline.process_unprocessed(batch_size=2)
         
         mock_dal.get_unprocessed_news.assert_called_once()
         mock_loader.predict.assert_called_once_with(['Good news', 'Bad news'], batch_size=2)
         mock_dal.bulk_insert_sentiment_scores.assert_called_once()
+        assert stats == {"headlines": 2, "scores_inserted": 2, "aggregate_days": 2}
+        assert [call.args[0] for call in mock_update.call_args_list] == ["2023-01-01", "2023-01-02"]
         
         # Verify stored records
         records = mock_dal.bulk_insert_sentiment_scores.call_args[0][0]
@@ -80,7 +83,8 @@ class TestSentimentPipeline:
 
     def test_process_unprocessed_empty(self, pipeline, mock_dal):
         mock_dal.get_unprocessed_news.return_value = []
-        pipeline.process_unprocessed()
+        stats = pipeline.process_unprocessed()
+        assert stats == {"headlines": 0, "scores_inserted": 0, "aggregate_days": 0}
         mock_dal.bulk_insert_sentiment_scores.assert_not_called()
 
     def test_update_daily_aggregates(self, pipeline, mock_dal):
@@ -122,10 +126,35 @@ class TestSentimentPipeline:
         mock_dal.get_news_for_date.return_value = [] # Just to avoid errors in update_daily_aggregates
         
         with patch.object(pipeline, 'update_daily_aggregates') as mock_update:
-            pipeline.process_date("2023-01-01")
+            stats = pipeline.process_date("2023-01-01")
             mock_update.assert_called_with("2023-01-01")
-            
+            assert stats == {"headlines": 1, "scores_inserted": 1, "aggregate_days": 1}
+
         mock_dal.bulk_insert_sentiment_scores.assert_called_once()
+
+    def test_process_unprocessed_for_ticker(self, pipeline, mock_dal, mock_loader):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_dal.get_connection.return_value.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchall.return_value = [
+            {"id": 10, "headline": "AAPL up", "ticker": "AAPL", "published_at": "2023-02-01 09:00:00"},
+            {"id": 11, "headline": "AAPL beat", "ticker": "AAPL", "published_at": "2023-02-02 10:00:00"},
+        ]
+
+        mock_loader.predict.return_value = [
+            {"label": "Positive", "score": 0.9, "probs": {"Positive": 0.9, "Negative": 0.05, "Neutral": 0.05}},
+            {"label": "Neutral", "score": 0.6, "probs": {"Positive": 0.2, "Negative": 0.2, "Neutral": 0.6}},
+        ]
+
+        with patch.object(pipeline, "update_daily_aggregates") as mock_update:
+            stats = pipeline.process_unprocessed_for_ticker("aapl", batch_size=8, limit=50)
+
+        assert stats == {"headlines": 2, "scores_inserted": 2, "aggregate_days": 2}
+        assert [call.args[0] for call in mock_update.call_args_list] == ["2023-02-01", "2023-02-02"]
+        mock_cursor.execute.assert_called_once()
+        execute_args = mock_cursor.execute.call_args[0]
+        assert execute_args[1] == ("AAPL", 50)
 
     def test_process_headlines_filters_error_and_defaults(self, pipeline, mock_dal, mock_loader):
         headlines = [

@@ -235,11 +235,12 @@ def test_show_stock_analysis_uses_default_ticker(monkeypatch):
     monkeypatch.setattr(views, "generate_lstm_visualization_data", fake_generate)
     monkeypatch.setattr(views, "generate_classification_signal_data", fake_classifier_generate)
     monkeypatch.setattr(views, "ChartGenerator", lambda: DummyChartGenerator())
+    monkeypatch.setattr(views, "_render_sentiment_tab", lambda **kwargs: None)
 
     views.show_stock_analysis()
 
     assert any(call[0] == "header" and "Stock Analysis" in call[1] for call in fake_st.calls)
-    assert ("tabs", ("LSTM", "Random Forest", "XGBoost")) in fake_st.calls
+    assert ("tabs", ("LSTM", "Random Forest", "XGBoost", "Sentiment")) in fake_st.calls
     assert ("spinner", "Fetching data and model output for AAPL...") in fake_st.calls
     assert captured_lstm["ticker"] == "AAPL"
     assert [c["model_type"] for c in classifier_calls] == ["rf", "xgb"]
@@ -276,6 +277,7 @@ def test_show_stock_analysis_uses_session_ticker(monkeypatch):
     monkeypatch.setattr(views, "generate_lstm_visualization_data", fake_generate)
     monkeypatch.setattr(views, "generate_classification_signal_data", fake_classifier_generate)
     monkeypatch.setattr(views, "ChartGenerator", lambda: DummyChartGenerator())
+    monkeypatch.setattr(views, "_render_sentiment_tab", lambda **kwargs: None)
 
     views.show_stock_analysis()
 
@@ -297,6 +299,7 @@ def test_show_stock_analysis_handles_generation_error(monkeypatch):
 
     monkeypatch.setattr(views, "generate_lstm_visualization_data", fake_generate)
     monkeypatch.setattr(views, "generate_classification_signal_data", fake_classifier_generate)
+    monkeypatch.setattr(views, "_render_sentiment_tab", lambda **kwargs: None)
 
     views.show_stock_analysis()
 
@@ -328,6 +331,7 @@ def test_show_stock_analysis_rf_error_is_isolated(monkeypatch):
     monkeypatch.setattr(views, "generate_lstm_visualization_data", fake_lstm_generate)
     monkeypatch.setattr(views, "generate_classification_signal_data", fake_classifier_generate)
     monkeypatch.setattr(views, "ChartGenerator", lambda: DummyChartGenerator())
+    monkeypatch.setattr(views, "_render_sentiment_tab", lambda **kwargs: None)
 
     views.show_stock_analysis()
 

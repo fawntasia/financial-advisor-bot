@@ -1,4 +1,3 @@
-import logging
 import re
 from html import unescape
 from typing import List, Dict, Optional
@@ -19,19 +18,46 @@ class SentimentPipeline:
         self.dal = dal or DataAccessLayer()
         self.loader = FinBERTLoader(model_path=model_path)
         
-    def process_unprocessed(self, batch_size: int = 32, limit: int = 1000):
+    def process_unprocessed(self, batch_size: int = 32, limit: int = 1000) -> Dict[str, int]:
         """
         Fetches and processes news headlines that haven't been analyzed yet.
         """
         headlines = self.dal.get_unprocessed_news(limit=limit)
         if not headlines:
             logger.info("No unprocessed headlines found.")
-            return
+            return {"headlines": 0, "scores_inserted": 0, "aggregate_days": 0}
         
         logger.info(f"Processing {len(headlines)} headlines in batches of {batch_size}...")
-        self._process_headlines(headlines, batch_size)
+        return self._process_and_update(headlines, batch_size)
 
-    def process_date(self, date: str, batch_size: int = 32):
+    def process_unprocessed_for_ticker(self, ticker: str, batch_size: int = 32, limit: int = 1000) -> Dict[str, int]:
+        """
+        Fetch and process unscored news headlines for one ticker only.
+        """
+        symbol = (ticker or "").upper().strip()
+        if not symbol:
+            return {"headlines": 0, "scores_inserted": 0, "aggregate_days": 0}
+
+        with self.dal.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT h.* FROM news_headlines h
+                   LEFT JOIN sentiment_scores s ON h.id = s.news_id
+                   WHERE s.id IS NULL AND h.ticker = ?
+                   ORDER BY h.published_at DESC
+                   LIMIT ?""",
+                (symbol, limit),
+            )
+            headlines = [dict(row) for row in cursor.fetchall()]
+
+        if not headlines:
+            logger.info("No unprocessed headlines found for %s.", symbol)
+            return {"headlines": 0, "scores_inserted": 0, "aggregate_days": 0}
+
+        logger.info("Processing %d headlines for %s in batches of %d...", len(headlines), symbol, batch_size)
+        return self._process_and_update(headlines, batch_size)
+
+    def process_date(self, date: str, batch_size: int = 32) -> Dict[str, int]:
         """
         Processes news headlines for a specific date that haven't been analyzed yet.
         
@@ -55,18 +81,34 @@ class SentimentPipeline:
             # if news were recently processed for this date but aggregates weren't updated.
             # But the prompt implies running the pipeline for a date means processing and storing.
             self.update_daily_aggregates(date)
-            return
+            return {"headlines": 0, "scores_inserted": 0, "aggregate_days": 1}
             
         logger.info(f"Processing {len(headlines)} headlines for date {date}...")
-        self._process_headlines(headlines, batch_size)
+        scores_inserted = self._process_headlines(headlines, batch_size)
         self.update_daily_aggregates(date)
+        return {"headlines": len(headlines), "scores_inserted": scores_inserted, "aggregate_days": 1}
 
-    def _process_headlines(self, headlines: List[Dict], batch_size: int):
+    def _process_and_update(self, headlines: List[Dict], batch_size: int) -> Dict[str, int]:
+        """Process headlines and refresh aggregate rows for all affected dates."""
+        scores_inserted = self._process_headlines(headlines, batch_size)
+        aggregate_dates = self._extract_aggregate_dates(headlines)
+        for date_str in aggregate_dates:
+            self.update_daily_aggregates(date_str)
+        return {
+            "headlines": len(headlines),
+            "scores_inserted": scores_inserted,
+            "aggregate_days": len(aggregate_dates),
+        }
+
+    def _process_headlines(self, headlines: List[Dict], batch_size: int) -> int:
         """Internal helper to process a list of headline records."""
         texts = [self._build_sentiment_text(h) for h in headlines]
         ids = [h['id'] for h in headlines]
         
         predictions = self.loader.predict(texts, batch_size=batch_size)
+        if not predictions:
+            logger.warning("No sentiment predictions returned. Check FinBERT model availability.")
+            return 0
         
         sentiment_records = []
         for news_id, pred in zip(ids, predictions):
@@ -85,6 +127,27 @@ class SentimentPipeline:
         if sentiment_records:
             self.dal.bulk_insert_sentiment_scores(sentiment_records)
             logger.info(f"Successfully stored {len(sentiment_records)} sentiment scores.")
+        return len(sentiment_records)
+
+    @staticmethod
+    def _extract_aggregate_dates(headlines: List[Dict]) -> List[str]:
+        """Extract unique YYYY-MM-DD dates for aggregate refresh."""
+        dates = set()
+        for headline in headlines:
+            published_at = headline.get("published_at")
+            if not isinstance(published_at, str) or len(published_at) < 10:
+                continue
+            date_str = published_at[:10]
+            try:
+                datetime.strptime(date_str, "%Y-%m-%d")
+            except ValueError:
+                continue
+            dates.add(date_str)
+
+        if not dates:
+            dates.add(datetime.now().strftime("%Y-%m-%d"))
+
+        return sorted(dates)
 
     @staticmethod
     def _strip_simple_html(text: str) -> str:

@@ -14,7 +14,9 @@ from src.llm.context_builder import ContextBuilder
 
 @pytest.fixture
 def mock_dal():
-    return Mock()
+    dal = Mock()
+    dal.get_latest_daily_sentiment.return_value = None
+    return dal
 
 
 def test_build_context_no_latest_date_returns_defaults(mock_dal):
@@ -96,6 +98,26 @@ def test_build_context_missing_supporting_data_returns_fallbacks(mock_dal):
     assert result["indicators_summary"] == "Technical indicator data is currently unavailable."
     assert result["sentiment_summary"] == "No recent news sentiment data available."
     assert result["prediction_summary"] == "No recent AI model predictions available."
+
+
+def test_build_context_uses_latest_sentiment_fallback(mock_dal):
+    mock_dal.get_latest_price_date.return_value = "2024-01-03"
+    mock_dal.get_stock_prices.return_value = pd.DataFrame([{"open": 100.0, "close": 101.0}])
+    mock_dal.get_technical_indicators.return_value = None
+    mock_dal.get_daily_sentiment.return_value = None
+    mock_dal.get_latest_daily_sentiment.return_value = {
+        "overall_sentiment": "positive",
+        "confidence": 0.66,
+        "news_count": 8,
+        "date": "2024-01-02",
+    }
+    mock_dal.get_predictions.return_value = []
+
+    builder = ContextBuilder(mock_dal)
+    result = builder.build_context("AAPL")
+
+    assert "Market sentiment on 2024-01-02 was positive" in result["sentiment_summary"]
+    mock_dal.get_latest_daily_sentiment.assert_called_once_with("AAPL")
 
 
 def test_build_context_cache_short_circuits_repeated_calls(mock_dal, monkeypatch):

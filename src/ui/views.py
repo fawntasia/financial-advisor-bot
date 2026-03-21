@@ -1,5 +1,6 @@
 """Streamlit view components for the Financial Advisor Bot UI."""
 
+from datetime import datetime
 from math import isnan
 from pathlib import Path
 from time import perf_counter
@@ -38,6 +39,55 @@ def _format_decimal(value, digits: int = 3) -> str:
     if isnan(numeric):
         return "N/A"
     return f"{numeric:.{digits}f}"
+
+
+def _signed_sentiment_score(avg_positive, avg_negative) -> float:
+    """Map average sentiment probabilities to a signed score in [-1, 1]."""
+    try:
+        pos = float(avg_positive or 0.0)
+    except (TypeError, ValueError):
+        pos = 0.0
+    try:
+        neg = float(avg_negative or 0.0)
+    except (TypeError, ValueError):
+        neg = 0.0
+    return pos - neg
+
+
+def _run_sentiment_job(
+    dal: DataAccessLayer,
+    scope: str,
+    batch_size: int,
+    limit: int,
+    model_path: str = "models/finbert",
+    ticker: str = "",
+    date_str: str = "",
+):
+    """Execute a sentiment analysis job and return pipeline stats."""
+    try:
+        from src.nlp.sentiment_pipeline import SentimentPipeline
+    except Exception as exc:
+        raise RuntimeError(
+            "Sentiment dependencies are not available. Install/repair transformers + torch, then retry."
+        ) from exc
+
+    pipeline = SentimentPipeline(dal=dal, model_path=model_path)
+    if pipeline.loader.model is None or pipeline.loader.tokenizer is None:
+        raise RuntimeError(
+            "FinBERT model is not loaded. Ensure files exist in models/finbert (or provide a valid model path)."
+        )
+
+    if scope == "ticker":
+        return pipeline.process_unprocessed_for_ticker(
+            ticker=ticker,
+            batch_size=batch_size,
+            limit=limit,
+        )
+
+    if scope == "date":
+        return pipeline.process_date(date=date_str, batch_size=batch_size)
+
+    return pipeline.process_unprocessed(batch_size=batch_size, limit=limit)
 
 
 def _render_lstm_tab(ticker: str, dal: DataAccessLayer, chart_generator: ChartGenerator):
@@ -146,6 +196,144 @@ def _render_classifier_tab(ticker: str, dal: DataAccessLayer, model_type: str, l
     )
 
 
+def _render_sentiment_tab(ticker: str, dal: DataAccessLayer, chart_generator: ChartGenerator):
+    """Render per-ticker sentiment controls and visualizations."""
+    st.subheader(
+        "Ticker Sentiment",
+        help="Daily aggregate sentiment from FinBERT-scored headlines for this ticker.",
+    )
+
+    with st.expander("Run FinBERT For This Ticker", expanded=False):
+        c1, c2, c3 = st.columns(3)
+        batch_size = c1.number_input(
+            "Batch Size",
+            min_value=1,
+            max_value=256,
+            value=32,
+            step=1,
+            key=f"sent_batch_{ticker}",
+        )
+        limit = c2.number_input(
+            "Unprocessed Headline Limit",
+            min_value=1,
+            max_value=5000,
+            value=500,
+            step=50,
+            key=f"sent_limit_{ticker}",
+        )
+        model_path = c3.text_input(
+            "FinBERT Model Path",
+            value="models/finbert",
+            key=f"sent_model_path_{ticker}",
+        )
+
+        if st.button(
+            f"Analyze {ticker} Headlines",
+            type="primary",
+            use_container_width=True,
+            key=f"run_sentiment_{ticker}",
+        ):
+            with st.spinner(f"Running FinBERT sentiment analysis for {ticker}..."):
+                start = perf_counter()
+                try:
+                    stats = _run_sentiment_job(
+                        dal=dal,
+                        scope="ticker",
+                        batch_size=int(batch_size),
+                        limit=int(limit),
+                        model_path=(model_path or "models/finbert").strip(),
+                        ticker=ticker,
+                    )
+                except Exception as exc:
+                    st.error(f"Sentiment run failed: {exc}")
+                else:
+                    elapsed = perf_counter() - start
+                    st.success(f"Sentiment analysis completed in {elapsed:.1f}s.")
+                    m1, m2, m3 = st.columns(3)
+                    m1.metric("Headlines Processed", str(stats.get("headlines", 0)))
+                    m2.metric("Scores Inserted", str(stats.get("scores_inserted", 0)))
+                    m3.metric("Aggregate Days Refreshed", str(stats.get("aggregate_days", 0)))
+
+    controls = st.columns(2)
+    history_days = controls[0].slider(
+        "Sentiment History Window (Days)",
+        min_value=7,
+        max_value=365,
+        value=60,
+        step=1,
+        key=f"sent_history_days_{ticker}",
+    )
+    headline_rows = controls[1].slider(
+        "Recent Scored Headlines",
+        min_value=10,
+        max_value=100,
+        value=25,
+        step=5,
+        key=f"sent_rows_{ticker}",
+    )
+
+    latest = dal.get_latest_daily_sentiment(ticker)
+    if latest:
+        net_score = _signed_sentiment_score(
+            latest.get("avg_positive"),
+            latest.get("avg_negative"),
+        )
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Latest Sentiment", str(latest.get("overall_sentiment", "N/A")))
+        m2.metric("Net Score", _format_decimal(net_score, digits=3))
+        m3.metric("Confidence", _format_ratio(latest.get("confidence")))
+        m4.metric("News Count", str(latest.get("news_count", 0)))
+        st.caption(f"Latest aggregate date: `{latest.get('date', 'N/A')}`")
+    else:
+        st.info(
+            f"No daily sentiment aggregates are available for {ticker} yet. "
+            "Run news ingestion first, then run FinBERT scoring."
+        )
+
+    history_rows = dal.get_daily_sentiment_history(ticker=ticker, days=int(history_days), limit=400)
+    if history_rows:
+        sentiment_df = pd.DataFrame(history_rows)
+        sentiment_df["Date"] = pd.to_datetime(sentiment_df.get("date"), errors="coerce")
+        sentiment_df = sentiment_df.dropna(subset=["Date"]).sort_values("Date")
+        sentiment_df["SentimentScore"] = sentiment_df.apply(
+            lambda row: _signed_sentiment_score(row.get("avg_positive"), row.get("avg_negative")),
+            axis=1,
+        )
+
+        if not sentiment_df.empty:
+            st.caption("Sentiment score formula: `avg_positive - avg_negative`.")
+            fig = chart_generator.create_sentiment_chart(sentiment_df[["Date", "SentimentScore"]], ticker)
+            st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No sentiment timeline to plot yet for this ticker.")
+
+    st.subheader("Recent Scored Headlines")
+    scored_rows = dal.get_recent_scored_news_by_ticker(ticker=ticker, limit=int(headline_rows))
+    if not scored_rows:
+        st.info("No scored headlines found for this ticker.")
+        return
+
+    scored_df = pd.DataFrame(scored_rows)
+    if "confidence" in scored_df.columns:
+        scored_df["confidence"] = scored_df["confidence"].apply(_format_ratio)
+    columns = [
+        col
+        for col in [
+            "published_at",
+            "headline",
+            "sentiment_label",
+            "confidence",
+            "source",
+            "provider",
+            "url",
+        ]
+        if col in scored_df.columns
+    ]
+    if columns:
+        scored_df = scored_df[columns]
+    st.dataframe(scored_df, use_container_width=True, hide_index=True)
+
+
 def show_stock_analysis():
     """Render ticker-specific technical charts and model signal tabs."""
     st.header("Stock Analysis")
@@ -158,7 +346,7 @@ def show_stock_analysis():
         st.session_state.dal = dal
 
     chart_generator = ChartGenerator()
-    lstm_tab, rf_tab, xgb_tab = st.tabs(["LSTM", "Random Forest", "XGBoost"])
+    lstm_tab, rf_tab, xgb_tab, sentiment_tab = st.tabs(["LSTM", "Random Forest", "XGBoost", "Sentiment"])
 
     with lstm_tab:
         _render_lstm_tab(ticker=ticker, dal=dal, chart_generator=chart_generator)
@@ -168,6 +356,9 @@ def show_stock_analysis():
 
     with xgb_tab:
         _render_classifier_tab(ticker=ticker, dal=dal, model_type="xgb", label="XGBoost")
+
+    with sentiment_tab:
+        _render_sentiment_tab(ticker=ticker, dal=dal, chart_generator=chart_generator)
 
 
 def show_chat_interface():
@@ -286,6 +477,76 @@ def show_data_pipeline():
             c1.metric("Stocks Processed", str(stock_stats.get("processed", 0)))
             c2.metric("Stock Rows Inserted", str(stock_stats.get("records_inserted", 0)))
             c3.metric("News Rows Inserted", str(news_stats.get("records_inserted", 0)))
+
+    st.markdown("---")
+    with st.container():
+        st.subheader("Run Sentiment Analysis")
+        st.caption("Score unprocessed news headlines with FinBERT and refresh daily ticker aggregates.")
+
+        run_mode = st.selectbox(
+            "Sentiment Scope",
+            options=["Selected Ticker", "All Unprocessed Headlines", "Specific Date"],
+            index=0,
+        )
+
+        ticker = st.session_state.get("ticker", "AAPL").upper().strip()
+        run_date = datetime.now().date()
+        if run_mode == "Selected Ticker":
+            st.info(f"Current ticker from sidebar: **{ticker}**")
+        elif run_mode == "Specific Date":
+            run_date = st.date_input("Date to Process", value=datetime.now().date())
+
+        s1, s2, s3 = st.columns(3)
+        sentiment_batch_size = s1.number_input("Sentiment Batch Size", min_value=1, max_value=256, value=32, step=1)
+        sentiment_limit = s2.number_input(
+            "Sentiment Headline Limit",
+            min_value=1,
+            max_value=20000,
+            value=2000,
+            step=100,
+            help="Only used for ticker/all-unprocessed modes.",
+        )
+        sentiment_model_path = s3.text_input("Sentiment Model Path", value="models/finbert")
+
+        if st.button("Run Sentiment Analysis", use_container_width=True):
+            with st.spinner("Running sentiment analysis..."):
+                start = perf_counter()
+                try:
+                    if run_mode == "Selected Ticker":
+                        stats = _run_sentiment_job(
+                            dal=dal,
+                            scope="ticker",
+                            batch_size=int(sentiment_batch_size),
+                            limit=int(sentiment_limit),
+                            model_path=(sentiment_model_path or "models/finbert").strip(),
+                            ticker=ticker,
+                        )
+                    elif run_mode == "Specific Date":
+                        stats = _run_sentiment_job(
+                            dal=dal,
+                            scope="date",
+                            batch_size=int(sentiment_batch_size),
+                            limit=int(sentiment_limit),
+                            model_path=(sentiment_model_path or "models/finbert").strip(),
+                            date_str=str(run_date),
+                        )
+                    else:
+                        stats = _run_sentiment_job(
+                            dal=dal,
+                            scope="all",
+                            batch_size=int(sentiment_batch_size),
+                            limit=int(sentiment_limit),
+                            model_path=(sentiment_model_path or "models/finbert").strip(),
+                        )
+                except Exception as exc:
+                    st.error(f"Sentiment analysis failed: {exc}")
+                else:
+                    elapsed = perf_counter() - start
+                    st.success(f"Sentiment analysis completed in {elapsed:.1f}s.")
+                    m1, m2, m3 = st.columns(3)
+                    m1.metric("Headlines Processed", str(stats.get("headlines", 0)))
+                    m2.metric("Scores Inserted", str(stats.get("scores_inserted", 0)))
+                    m3.metric("Aggregate Days Refreshed", str(stats.get("aggregate_days", 0)))
 
     st.markdown("---")
     st.subheader("Recent News Records")

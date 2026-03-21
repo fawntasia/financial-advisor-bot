@@ -58,6 +58,8 @@ class ContextBuilder:
         price_data = self._get_latest_price(ticker, latest_date)
         indicators_data = self.dal.get_technical_indicators(ticker, latest_date)
         sentiment_data = self.dal.get_daily_sentiment(ticker, latest_date)
+        if not sentiment_data:
+            sentiment_data = self.dal.get_latest_daily_sentiment(ticker)
         predictions = self.dal.get_predictions(ticker, limit=5)
 
         # Get close price for indicator comparisons

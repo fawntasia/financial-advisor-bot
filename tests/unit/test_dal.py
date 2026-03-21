@@ -370,6 +370,25 @@ class TestDataAccessLayer:
         score2 = dal.get_sentiment_by_news_id(news_id2)
         assert score2["sentiment_label"] == "negative"
 
+    def test_get_recent_scored_news_by_ticker(self, dal):
+        """Test retrieval of scored ticker headlines sorted by latest published time."""
+        dal.insert_ticker("AAPL", "Apple Inc.")
+        dal.insert_ticker("MSFT", "Microsoft")
+
+        aapl_1 = dal.insert_news_headline("AAPL", "AAPL older", "Source", "a1", "2023-01-01 08:00:00")
+        aapl_2 = dal.insert_news_headline("AAPL", "AAPL newer", "Source", "a2", "2023-01-02 09:00:00")
+        msft_1 = dal.insert_news_headline("MSFT", "MSFT headline", "Source", "m1", "2023-01-03 10:00:00")
+
+        dal.insert_sentiment_score(aapl_1, 0.6, 0.2, 0.2, "positive", 0.9)
+        dal.insert_sentiment_score(aapl_2, 0.1, 0.7, 0.2, "negative", 0.85)
+        dal.insert_sentiment_score(msft_1, 0.3, 0.3, 0.4, "neutral", 0.7)
+
+        rows = dal.get_recent_scored_news_by_ticker("AAPL", limit=10)
+        assert len(rows) == 2
+        assert [row["headline"] for row in rows] == ["AAPL newer", "AAPL older"]
+        assert all(row["ticker"] == "AAPL" for row in rows)
+        assert {"sentiment_label", "confidence", "positive_score", "negative_score", "neutral_score"}.issubset(rows[0].keys())
+
     # ==================== Daily Sentiment ====================
 
     def test_daily_sentiment_operations(self, dal):
@@ -384,6 +403,22 @@ class TestDataAccessLayer:
         assert sentiment is not None
         assert sentiment["overall_sentiment"] == "positive"
         assert sentiment["news_count"] == 10
+
+    def test_daily_sentiment_latest_and_history(self, dal):
+        """Test latest daily sentiment lookup and ordered history retrieval."""
+        dal.insert_ticker("AAPL", "Apple Inc.")
+        dal.insert_daily_sentiment("AAPL", "2023-01-01", 0.5, 0.2, 0.3, "positive", 0.7, 4)
+        dal.insert_daily_sentiment("AAPL", "2023-01-03", 0.3, 0.4, 0.3, "negative", 0.65, 6)
+        dal.insert_daily_sentiment("AAPL", "2023-01-02", 0.4, 0.3, 0.3, "neutral", 0.6, 5)
+
+        latest = dal.get_latest_daily_sentiment("AAPL")
+        assert latest is not None
+        assert latest["date"] == "2023-01-03"
+        assert latest["overall_sentiment"] == "negative"
+
+        history = dal.get_daily_sentiment_history("AAPL", days=0, limit=10)
+        assert [row["date"] for row in history] == ["2023-01-01", "2023-01-02", "2023-01-03"]
+        assert [row["overall_sentiment"] for row in history] == ["positive", "neutral", "negative"]
 
     # ==================== Predictions ====================
 

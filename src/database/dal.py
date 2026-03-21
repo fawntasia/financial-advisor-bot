@@ -294,6 +294,34 @@ class DataAccessLayer:
             )
             return [dict(row) for row in cursor.fetchall()]
 
+    def get_recent_scored_news_by_ticker(self, ticker: str, limit: int = 50) -> List[Dict]:
+        """Get recent ticker headlines joined with their sentiment scores."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT
+                       h.id,
+                       h.ticker,
+                       h.headline,
+                       h.source,
+                       h.provider,
+                       h.url,
+                       h.published_at,
+                       h.fetched_at,
+                       s.sentiment_label,
+                       s.confidence,
+                       s.positive_score,
+                       s.negative_score,
+                       s.neutral_score
+                   FROM news_headlines h
+                   JOIN sentiment_scores s ON h.id = s.news_id
+                   WHERE h.ticker = ?
+                   ORDER BY COALESCE(h.published_at, h.fetched_at) DESC
+                   LIMIT ?""",
+                (ticker, limit),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
     # ==================== Sentiment Scores ====================
 
     
@@ -350,6 +378,43 @@ class DataAccessLayer:
             )
             row = cursor.fetchone()
             return dict(row) if row else None
+
+    def get_latest_daily_sentiment(self, ticker: str) -> Optional[Dict]:
+        """Get the most recent daily sentiment row for a ticker."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT * FROM daily_sentiment
+                   WHERE ticker = ?
+                   ORDER BY date DESC, created_at DESC
+                   LIMIT 1""",
+                (ticker,),
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def get_daily_sentiment_history(self, ticker: str, days: int = 60, limit: int = 180) -> List[Dict]:
+        """Get ticker daily sentiment history ordered by date ASC."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if days > 0:
+                cursor.execute(
+                    """SELECT * FROM daily_sentiment
+                       WHERE ticker = ?
+                         AND date >= date('now', ?)
+                       ORDER BY date ASC
+                       LIMIT ?""",
+                    (ticker, f"-{int(days)} day", limit),
+                )
+            else:
+                cursor.execute(
+                    """SELECT * FROM daily_sentiment
+                       WHERE ticker = ?
+                       ORDER BY date ASC
+                       LIMIT ?""",
+                    (ticker, limit),
+                )
+            return [dict(row) for row in cursor.fetchall()]
     
     def insert_daily_sentiment(self, ticker: str, date: str, avg_positive: float,
                                avg_negative: float, avg_neutral: float,
