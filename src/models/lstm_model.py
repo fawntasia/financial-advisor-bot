@@ -33,7 +33,7 @@ class LSTMModel(StockPredictor):
                 Input(shape=(self.sequence_length, self.n_features)),
                 LSTM(128, return_sequences=True),
                 LSTM(64, return_sequences=False),
-                Dense(1),
+                Dense(1, dtype="float32"),
             ]
         )
 

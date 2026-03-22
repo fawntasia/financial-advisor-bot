@@ -27,11 +27,13 @@ class XGBoostModel(StockPredictor):
         max_depth: int = 3,
         random_state: int = 42,
         use_gpu: bool = False,
+        n_jobs: int = -1,
     ):
         self.model_name = "XGBoost_v2"
         self.random_state = random_state
         self.use_gpu = use_gpu
         self.tree_method = "gpu_hist" if use_gpu else "hist"
+        self.n_jobs = n_jobs
         self.model = XGBClassifier(
             learning_rate=learning_rate,
             n_estimators=n_estimators,
@@ -39,6 +41,7 @@ class XGBoostModel(StockPredictor):
             random_state=random_state,
             eval_metric="logloss",
             tree_method=self.tree_method,
+            n_jobs=self.n_jobs,
             early_stopping_rounds=None,
         )
         self.is_tuned = False
@@ -76,6 +79,7 @@ class XGBoostModel(StockPredictor):
             random_state=self.random_state,
             eval_metric="logloss",
             tree_method=self.tree_method,
+            n_jobs=self.n_jobs,
             **params,
         )
 
@@ -94,6 +98,68 @@ class XGBoostModel(StockPredictor):
         labels, probabilities = self._predict_labels(X_data)
         return compute_classification_metrics(y_data, labels, probabilities)
 
+    @staticmethod
+    def _compute_prediction_diversity(y_prob, threshold: float = 0.5) -> Dict[str, float]:
+        """Summarize probability/prediction diversity for anti-collapse diagnostics."""
+        probs = np.asarray(y_prob, dtype=float).reshape(-1)
+        if probs.size == 0:
+            return {
+                "samples": 0.0,
+                "prob_mean": float("nan"),
+                "prob_std": float("nan"),
+                "unique_prob_6dp": 0.0,
+                "predicted_up_ratio": float("nan"),
+            }
+        pred = (probs >= threshold).astype(int)
+        return {
+            "samples": float(probs.size),
+            "prob_mean": float(np.mean(probs)),
+            "prob_std": float(np.std(probs)),
+            "unique_prob_6dp": float(np.unique(np.round(probs, 6)).size),
+            "predicted_up_ratio": float(np.mean(pred)),
+        }
+
+    @staticmethod
+    def _is_degenerate_prediction_profile(
+        diversity: Dict[str, float],
+        *,
+        min_predicted_up_ratio: float = 0.05,
+        max_predicted_up_ratio: float = 0.95,
+        min_unique_probabilities: int = 3,
+        min_probability_std: float = 1e-3,
+    ) -> bool:
+        """Detect collapsed prediction profiles (near one-class outputs)."""
+        up_ratio = diversity.get("predicted_up_ratio", float("nan"))
+        prob_std = diversity.get("prob_std", float("nan"))
+        unique_prob = diversity.get("unique_prob_6dp", 0.0)
+
+        if np.isnan(up_ratio) or np.isnan(prob_std):
+            return True
+        if up_ratio <= min_predicted_up_ratio or up_ratio >= max_predicted_up_ratio:
+            return True
+        if prob_std < min_probability_std:
+            return True
+        if unique_prob < float(min_unique_probabilities):
+            return True
+        return False
+
+    @staticmethod
+    def _build_adaptive_threshold_grid(y_prob: np.ndarray) -> np.ndarray:
+        """
+        Build threshold candidates that include both fixed defaults and
+        distribution-aware probability quantiles.
+        """
+        base_grid = np.linspace(0.3, 0.7, 17)
+        probs = np.asarray(y_prob, dtype=float).reshape(-1)
+        if probs.size == 0:
+            return base_grid
+
+        quantile_grid = np.quantile(probs, np.linspace(0.05, 0.95, 19))
+        median_threshold = np.array([float(np.median(probs))], dtype=float)
+        merged = np.concatenate([base_grid, quantile_grid, median_threshold], axis=0)
+        merged = np.clip(merged, 1e-6, 1.0 - 1e-6)
+        return np.unique(np.round(merged, 6))
+
     def train(
         self,
         X_train,
@@ -106,6 +172,11 @@ class XGBoostModel(StockPredictor):
         tune_hyperparameters: bool = True,
         val_prices=None,
         validation_fraction: float = 0.1,
+        enforce_prediction_diversity: bool = False,
+        min_predicted_up_ratio: float = 0.05,
+        max_predicted_up_ratio: float = 0.95,
+        min_unique_probabilities: int = 3,
+        min_probability_std: float = 1e-4,
         **kwargs,
     ) -> Dict[str, Any]:
         """
@@ -186,14 +257,49 @@ class XGBoostModel(StockPredictor):
         self._is_fitted = True
 
         threshold_objective = None
+        prediction_diversity = None
+        used_median_threshold_fallback = False
         if len(X_val) > 0:
             val_prob = self.model.predict_proba(X_val)[:, 1]
+            threshold_candidates = self._build_adaptive_threshold_grid(val_prob)
             best_threshold, threshold_objective = tune_decision_threshold(
                 y_true=y_val,
                 y_prob=val_prob,
                 prices=val_prices,
+                thresholds=threshold_candidates,
             )
             self.decision_threshold = best_threshold
+
+            prediction_diversity = self._compute_prediction_diversity(val_prob, threshold=self.decision_threshold)
+            if enforce_prediction_diversity and self._is_degenerate_prediction_profile(
+                prediction_diversity,
+                min_predicted_up_ratio=min_predicted_up_ratio,
+                max_predicted_up_ratio=max_predicted_up_ratio,
+                min_unique_probabilities=min_unique_probabilities,
+                min_probability_std=min_probability_std,
+            ):
+                median_threshold = float(np.median(val_prob))
+                median_diversity = self._compute_prediction_diversity(val_prob, threshold=median_threshold)
+                if not self._is_degenerate_prediction_profile(
+                    median_diversity,
+                    min_predicted_up_ratio=min_predicted_up_ratio,
+                    max_predicted_up_ratio=max_predicted_up_ratio,
+                    min_unique_probabilities=min_unique_probabilities,
+                    min_probability_std=min_probability_std,
+                ):
+                    print(
+                        "Validation prediction profile was degenerate at tuned threshold; "
+                        "using median-probability threshold fallback."
+                    )
+                    self.decision_threshold = median_threshold
+                    prediction_diversity = median_diversity
+                    threshold_objective = f"{threshold_objective}+median_fallback"
+                    used_median_threshold_fallback = True
+                else:
+                    raise ValueError(
+                        "Degenerate validation prediction profile detected for XGBoost. "
+                        f"stats={prediction_diversity}"
+                    )
             print(f"Selected threshold: {self.decision_threshold:.3f} ({threshold_objective})")
 
         train_metrics = self._evaluate_split(X_fit, y_fit)
@@ -230,6 +336,8 @@ class XGBoostModel(StockPredictor):
             "train_rows": int(len(X_fit)),
             "validation_rows": int(len(X_val)),
             "test_rows": int(len(X_test)) if X_test is not None else 0,
+            "prediction_diversity": prediction_diversity,
+            "used_median_threshold_fallback": bool(used_median_threshold_fallback),
         }
         return {
             "train": train_metrics,

@@ -8,6 +8,10 @@ from src.llm.llama_loader import LlamaLoader, DEFAULT_MODEL_PATH
 from src.llm.prompts import PromptManager
 from src.llm.context_builder import ContextBuilder
 from src.database.dal import DataAccessLayer
+from src.models.production_config import (
+    classifier_model_names_for_type,
+    resolve_production_classifier_model_type,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -334,64 +338,104 @@ class ChatManager:
         cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
         return cleaned
 
+    def _resolve_production_prediction_model_names(self) -> List[str]:
+        """Resolve production model names used by `predictions.model_name`."""
+        try:
+            production_model_type = resolve_production_classifier_model_type()
+        except FileNotFoundError:
+            return []
+        except Exception as e:
+            logger.warning(f"Unable to resolve production model config: {e}")
+            return []
+
+        return sorted(classifier_model_names_for_type(production_model_type))
+
+    def _query_top_prediction_candidates(
+        self,
+        limit: int,
+        model_names: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Query top bullish candidates with optional model-name filtering."""
+        with self.dal.get_connection() as conn:
+            cursor = conn.cursor()
+            params: List[Any] = []
+            model_filter_sql = ""
+            if model_names:
+                placeholders = ",".join("?" for _ in model_names)
+                model_filter_sql = f"WHERE p.model_name IN ({placeholders})"
+                params.extend(model_names)
+
+            sql = f"""
+                WITH ranked_predictions AS (
+                    SELECT
+                        p.ticker,
+                        p.model_name,
+                        p.date,
+                        p.predicted_direction,
+                        p.confidence,
+                        p.created_at,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY p.ticker, p.model_name
+                            ORDER BY p.date DESC, p.created_at DESC
+                        ) AS rn
+                    FROM predictions p
+                    {model_filter_sql}
+                ),
+                latest_model_predictions AS (
+                    SELECT ticker, model_name, date, predicted_direction, confidence
+                    FROM ranked_predictions
+                    WHERE rn = 1
+                ),
+                ticker_scores AS (
+                    SELECT
+                        ticker,
+                        MAX(date) AS latest_prediction_date,
+                        SUM(CASE WHEN predicted_direction = 1 THEN 1 ELSE 0 END) AS up_votes,
+                        COUNT(*) AS total_votes,
+                        AVG(
+                            CASE
+                                WHEN predicted_direction = 1 THEN COALESCE(confidence, 0.0)
+                                ELSE NULL
+                            END
+                        ) AS avg_up_confidence
+                    FROM latest_model_predictions
+                    GROUP BY ticker
+                )
+                SELECT
+                    ticker,
+                    latest_prediction_date,
+                    up_votes,
+                    total_votes,
+                    COALESCE(avg_up_confidence, 0.0) AS avg_up_confidence
+                FROM ticker_scores
+                WHERE up_votes > 0
+                ORDER BY up_votes DESC, avg_up_confidence DESC, ticker ASC
+                LIMIT ?
+            """
+            params.append(int(max(1, limit)))
+            cursor.execute(sql, tuple(params))
+            return [dict(row) for row in cursor.fetchall()]
+
     def _get_top_prediction_candidates(self, limit: int = 5) -> List[Dict[str, Any]]:
         """
         Get top bullish candidates from latest per-model predictions per ticker.
         Returns an empty list if no prediction data is available.
         """
         try:
-            with self.dal.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    WITH ranked_predictions AS (
-                        SELECT
-                            p.ticker,
-                            p.model_name,
-                            p.date,
-                            p.predicted_direction,
-                            p.confidence,
-                            p.created_at,
-                            ROW_NUMBER() OVER (
-                                PARTITION BY p.ticker, p.model_name
-                                ORDER BY p.date DESC, p.created_at DESC
-                            ) AS rn
-                        FROM predictions p
-                    ),
-                    latest_model_predictions AS (
-                        SELECT ticker, model_name, date, predicted_direction, confidence
-                        FROM ranked_predictions
-                        WHERE rn = 1
-                    ),
-                    ticker_scores AS (
-                        SELECT
-                            ticker,
-                            MAX(date) AS latest_prediction_date,
-                            SUM(CASE WHEN predicted_direction = 1 THEN 1 ELSE 0 END) AS up_votes,
-                            COUNT(*) AS total_votes,
-                            AVG(
-                                CASE
-                                    WHEN predicted_direction = 1 THEN COALESCE(confidence, 0.0)
-                                    ELSE NULL
-                                END
-                            ) AS avg_up_confidence
-                        FROM latest_model_predictions
-                        GROUP BY ticker
-                    )
-                    SELECT
-                        ticker,
-                        latest_prediction_date,
-                        up_votes,
-                        total_votes,
-                        COALESCE(avg_up_confidence, 0.0) AS avg_up_confidence
-                    FROM ticker_scores
-                    WHERE up_votes > 0
-                    ORDER BY up_votes DESC, avg_up_confidence DESC, ticker ASC
-                    LIMIT ?
-                    """,
-                    (int(max(1, limit)),),
+            production_model_names = self._resolve_production_prediction_model_names()
+            if production_model_names:
+                filtered = self._query_top_prediction_candidates(
+                    limit=limit,
+                    model_names=production_model_names,
                 )
-                return [dict(row) for row in cursor.fetchall()]
+                if filtered:
+                    return filtered
+                logger.warning(
+                    "No prediction candidates found for production model names "
+                    f"{production_model_names}; falling back to all model predictions."
+                )
+
+            return self._query_top_prediction_candidates(limit=limit, model_names=None)
         except Exception as e:
             logger.warning(f"Failed to fetch prediction candidates: {e}")
             return []

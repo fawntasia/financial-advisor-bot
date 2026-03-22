@@ -690,6 +690,14 @@ def _render_lstm_tab(ticker: str, dal: DataAccessLayer, chart_generator: ChartGe
             f"Ticker-specific scalers were not found for {ticker}. Using scaler from {viz_data['scaler_ticker']} as fallback."
         )
 
+    lstm_freshness = viz_data.get("artifact_freshness", {})
+    if lstm_freshness.get("is_stale"):
+        st.warning(
+            "LSTM artifact appears stale versus latest price data: "
+            f"{lstm_freshness.get('stale_days')} day(s) behind "
+            f"(artifact ref `{lstm_freshness.get('artifact_reference_date')}`, latest price `{lstm_freshness.get('latest_price_date')}`)."
+        )
+
 
 def _render_classifier_tab(ticker: str, dal: DataAccessLayer, model_type: str, label: str):
     """Render concise classifier signal cards for RF/XGBoost."""
@@ -731,6 +739,18 @@ def _render_classifier_tab(ticker: str, dal: DataAccessLayer, model_type: str, l
         f"Global test balanced accuracy: `{global_bal}` | Global test F1: `{global_f1}` | "
         f"{ticker} test balanced accuracy: `{ticker_bal}`"
     )
+
+    health = signal.get("classifier_health", {})
+    for warning_text in health.get("warnings", []):
+        st.warning(warning_text)
+
+    freshness = signal.get("artifact_freshness", {})
+    if freshness.get("is_stale"):
+        st.warning(
+            "Classifier artifact appears stale versus latest price data: "
+            f"{freshness.get('stale_days')} day(s) behind "
+            f"(artifact ref `{freshness.get('artifact_reference_date')}`, latest price `{freshness.get('latest_price_date')}`)."
+        )
 
 
 def _render_sentiment_tab(ticker: str, dal: DataAccessLayer, chart_generator: ChartGenerator):

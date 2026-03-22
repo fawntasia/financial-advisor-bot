@@ -185,6 +185,49 @@ def _select_scalers_for_ticker(scaler_bundle: object, ticker: str):
     raise ValueError("Unable to find valid feature/target scalers in the LSTM scaler artifact.")
 
 
+def _safe_parse_date(value: object) -> Optional[pd.Timestamp]:
+    """Parse date-like values to normalized pandas timestamps."""
+    if value is None:
+        return None
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed):
+        return None
+    ts = pd.Timestamp(parsed)
+    if ts.tz is not None:
+        ts = ts.tz_localize(None)
+    return ts.normalize()
+
+
+def _build_artifact_freshness(
+    latest_price_date: str,
+    metadata: Dict,
+    artifact_paths: LSTMArtifactPaths,
+    stale_threshold_days: int = 7,
+) -> Dict:
+    """Build stale-artifact diagnostics against latest DB market date."""
+    latest_ts = _safe_parse_date(latest_price_date)
+
+    artifact_ref_ts = None
+    for candidate in [metadata.get("trained_at"), metadata.get("updated_at"), metadata.get("created_at")]:
+        artifact_ref_ts = _safe_parse_date(candidate)
+        if artifact_ref_ts is not None:
+            break
+    if artifact_ref_ts is None:
+        artifact_ref_ts = pd.Timestamp.fromtimestamp(artifact_paths.model_path.stat().st_mtime).normalize()
+
+    stale_days: Optional[int] = None
+    if latest_ts is not None and artifact_ref_ts is not None:
+        stale_days = max(0, int((latest_ts - artifact_ref_ts).days))
+
+    return {
+        "latest_price_date": str(latest_price_date),
+        "artifact_reference_date": artifact_ref_ts.strftime("%Y-%m-%d") if artifact_ref_ts is not None else None,
+        "stale_days": stale_days,
+        "stale_threshold_days": int(stale_threshold_days),
+        "is_stale": bool(stale_days is not None and stale_days > stale_threshold_days),
+    }
+
+
 def _compute_rsi(closes: List[float], period: int = 14) -> float:
     """Compute a simple rolling RSI approximation from close prices."""
     if len(closes) <= period:
@@ -418,6 +461,11 @@ def generate_lstm_visualization_data(
         "sequence_length": sequence_length,
         "feature_columns": feature_columns,
         "scaler_ticker": scaler_ticker,
+        "artifact_freshness": _build_artifact_freshness(
+            latest_price_date=str(latest_date),
+            metadata=metadata,
+            artifact_paths=artifact_paths,
+        ),
         "artifact_paths": {
             "model_path": str(artifact_paths.model_path),
             "scaler_path": str(artifact_paths.scaler_path),

@@ -14,6 +14,10 @@ import pandas as pd
 from src.data.stock_data import StockDataProcessor
 from src.database.dal import DataAccessLayer
 from src.models.classification_utils import compute_classification_metrics
+from src.models.production_config import (
+    normalize_classifier_model_type,
+    resolve_production_classifier_model_type,
+)
 
 DEFAULT_FEATURE_COLUMNS = ["Close", "SMA_20", "SMA_50", "RSI", "MACD", "Signal_Line"]
 
@@ -28,12 +32,7 @@ class ClassifierArtifactPaths:
 
 
 def _normalize_model_type(model_type: str) -> str:
-    value = str(model_type).strip().lower()
-    if value in {"rf", "random_forest", "random-forest"}:
-        return "rf"
-    if value in {"xgb", "xgboost", "xg-boost"}:
-        return "xgb"
-    raise ValueError(f"Unsupported model type: {model_type}. Use 'rf' or 'xgb'.")
+    return normalize_classifier_model_type(model_type, allow_production=True)
 
 
 def resolve_classifier_artifacts(
@@ -42,6 +41,9 @@ def resolve_classifier_artifacts(
 ) -> ClassifierArtifactPaths:
     """Resolve classifier model + metadata artifact paths from `models/`."""
     normalized = _normalize_model_type(model_type)
+    if normalized == "production":
+        normalized = resolve_production_classifier_model_type()
+
     if not models_dir.exists():
         raise FileNotFoundError(f"Models directory not found: {models_dir}")
 
@@ -141,6 +143,83 @@ def _next_business_day(date_value: str) -> str:
     return (value + pd.tseries.offsets.BDay(1)).strftime("%Y-%m-%d")
 
 
+def _safe_parse_date(value: Any) -> Optional[pd.Timestamp]:
+    """Parse date-like values to normalized pandas timestamps."""
+    if value is None:
+        return None
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed):
+        return None
+    ts = pd.Timestamp(parsed)
+    if ts.tz is not None:
+        ts = ts.tz_localize(None)
+    return ts.normalize()
+
+
+def _extract_artifact_reference_date(metadata: Dict[str, Any], fallback_path: Path) -> Optional[pd.Timestamp]:
+    """
+    Best-effort artifact data date from metadata coverage fields.
+
+    Falls back to artifact mtime when metadata coverage is unavailable.
+    """
+    candidates: List[Any] = []
+    coverage = metadata.get("data_coverage")
+    if isinstance(coverage, dict):
+        date_coverage = coverage.get("date_coverage")
+        if isinstance(date_coverage, dict):
+            candidates.extend(
+                [
+                    date_coverage.get("overall_end"),
+                    date_coverage.get("test_end"),
+                    date_coverage.get("val_end"),
+                    date_coverage.get("train_end"),
+                ]
+            )
+        candidates.append(coverage.get("overall_end"))
+
+    candidates.extend(
+        [
+            metadata.get("trained_at"),
+            metadata.get("updated_at"),
+            metadata.get("created_at"),
+        ]
+    )
+
+    for value in candidates:
+        parsed = _safe_parse_date(value)
+        if parsed is not None:
+            return parsed
+
+    try:
+        return pd.Timestamp.fromtimestamp(fallback_path.stat().st_mtime).normalize()
+    except OSError:
+        return None
+
+
+def _build_artifact_freshness(
+    latest_price_date: str,
+    metadata: Dict[str, Any],
+    artifact_path: Path,
+    stale_threshold_days: int = 7,
+) -> Dict[str, Any]:
+    """Build stale-artifact diagnostics against latest DB market date."""
+    latest_ts = _safe_parse_date(latest_price_date)
+    artifact_ts = _extract_artifact_reference_date(metadata=metadata, fallback_path=artifact_path)
+
+    stale_days: Optional[int] = None
+    if latest_ts is not None and artifact_ts is not None:
+        stale_days = max(0, int((latest_ts - artifact_ts).days))
+
+    is_stale = stale_days is not None and stale_days > stale_threshold_days
+    return {
+        "latest_price_date": str(latest_price_date),
+        "artifact_reference_date": artifact_ts.strftime("%Y-%m-%d") if artifact_ts is not None else None,
+        "stale_days": stale_days,
+        "stale_threshold_days": int(stale_threshold_days),
+        "is_stale": bool(is_stale),
+    }
+
+
 def _build_recent_eval_metrics(
     model: Any,
     feature_df: pd.DataFrame,
@@ -173,7 +252,38 @@ def _build_recent_eval_metrics(
     y_pred = (y_prob >= threshold).astype(int)
 
     raw_metrics = compute_classification_metrics(y_true=y_true, y_pred=y_pred, y_prob=y_prob)
+    raw_metrics["predicted_up_ratio"] = float(np.mean(y_pred))
+    raw_metrics["actual_up_ratio"] = float(np.mean(y_true))
     return {k: float(v) for k, v in raw_metrics.items()}
+
+
+def _build_classifier_health_diagnostics(
+    global_metrics: Dict[str, float],
+    recent_eval_metrics: Dict[str, float],
+) -> Dict[str, Any]:
+    """Build simple degeneracy diagnostics for classifier output quality."""
+    warnings: List[str] = []
+
+    balanced_accuracy = global_metrics.get("balanced_accuracy")
+    precision = global_metrics.get("precision")
+    recall = global_metrics.get("recall")
+    roc_auc = global_metrics.get("roc_auc")
+
+    if balanced_accuracy is not None and balanced_accuracy <= 0.505:
+        warnings.append("Global balanced accuracy is near random chance (~0.50).")
+    if recall is not None and recall >= 0.98 and precision is not None and 0.40 <= precision <= 0.60:
+        warnings.append("Global recall is near 1.00 with mid precision, suggesting mostly one-class predictions.")
+    if roc_auc is not None and roc_auc <= 0.52:
+        warnings.append("Global ROC-AUC is near random chance.")
+
+    predicted_up_ratio = recent_eval_metrics.get("predicted_up_ratio")
+    if predicted_up_ratio is not None and (predicted_up_ratio >= 0.98 or predicted_up_ratio <= 0.02):
+        warnings.append("Recent-window predictions are almost entirely one direction.")
+
+    return {
+        "is_degenerate": bool(warnings),
+        "warnings": warnings,
+    }
 
 
 def _extract_metrics(metadata: Dict[str, Any], ticker: str) -> Dict[str, Dict[str, float]]:
@@ -215,6 +325,7 @@ def generate_classification_signal_data(
 ) -> Dict[str, Any]:
     """Generate UI-ready signal payload for RF/XGBoost model artifacts."""
     ticker = ticker.upper()
+    requested_model_type = str(model_type).strip().lower()
     latest_date = dal.get_latest_price_date(ticker)
     if not latest_date:
         raise ValueError(f"No stock price history found for ticker {ticker}.")
@@ -261,6 +372,15 @@ def generate_classification_signal_data(
         threshold=decision_threshold,
         eval_window=eval_window,
     )
+    classifier_health = _build_classifier_health_diagnostics(
+        global_metrics=metrics["global"],
+        recent_eval_metrics=recent_eval_metrics,
+    )
+    artifact_freshness = _build_artifact_freshness(
+        latest_price_date=str(latest_date),
+        metadata=metadata,
+        artifact_path=artifacts.model_path,
+    )
 
     if persist_prediction:
         existing = dal.get_prediction_by_key(ticker=ticker, model_name=model_name, date=prediction_date)
@@ -271,11 +391,12 @@ def generate_classification_signal_data(
                 model_name=model_name,
                 predicted_direction=predicted_direction,
                 predicted_price=None,
-                confidence=prob_up,
+                confidence=confidence,
             )
 
     return {
         "model_type": artifacts.model_type,
+        "requested_model_type": requested_model_type,
         "model_name": model_name,
         "latest_price_date": str(latest_date),
         "prediction_date": prediction_date,
@@ -287,6 +408,8 @@ def generate_classification_signal_data(
         "global_test_metrics": metrics["global"],
         "ticker_test_metrics": metrics["ticker"],
         "recent_eval_metrics": recent_eval_metrics,
+        "classifier_health": classifier_health,
+        "artifact_freshness": artifact_freshness,
         "feature_columns": feature_columns,
         "artifact_paths": {
             "model_path": str(artifacts.model_path),

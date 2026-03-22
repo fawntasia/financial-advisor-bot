@@ -27,6 +27,7 @@ class RandomForestModel(StockPredictor):
         min_samples_split: int = 2,
         random_state: int = 42,
         class_weight: Optional[str] = None,
+        n_jobs: int = -1,
     ):
         self.model_name = "RandomForest_v2"
         self.random_state = random_state
@@ -36,6 +37,7 @@ class RandomForestModel(StockPredictor):
             min_samples_split=min_samples_split,
             random_state=random_state,
             class_weight=class_weight,
+            n_jobs=n_jobs,
         )
         self.is_tuned = False
         self._is_fitted = False

@@ -68,6 +68,63 @@ def _resolve_split_dates(unique_dates: np.ndarray, train_split: float, val_split
     }
 
 
+def _resolve_split_dates_explicit(
+    unique_dates: np.ndarray,
+    *,
+    train_start_date: str,
+    train_end_date: str,
+    val_start_date: str,
+    val_end_date: str,
+    test_start_date: str | None = None,
+    test_end_date: str | None = None,
+) -> Dict[str, pd.DatetimeIndex]:
+    """Build split dates from explicit calendar ranges."""
+    date_index = pd.DatetimeIndex(unique_dates).normalize()
+
+    train_start = pd.Timestamp(train_start_date).normalize()
+    train_end = pd.Timestamp(train_end_date).normalize()
+    val_start = pd.Timestamp(val_start_date).normalize()
+    val_end = pd.Timestamp(val_end_date).normalize()
+    if not (train_start <= train_end < val_start <= val_end):
+        raise ValueError(
+            "Explicit split dates must satisfy train_start <= train_end < val_start <= val_end."
+        )
+
+    if test_start_date is None:
+        test_start = val_end + pd.Timedelta(days=1)
+    else:
+        test_start = pd.Timestamp(test_start_date).normalize()
+    test_end = pd.Timestamp(test_end_date).normalize() if test_end_date is not None else None
+
+    if test_start <= val_end:
+        raise ValueError("test_start_date must be after val_end_date.")
+    if test_end is not None and test_end < test_start:
+        raise ValueError("test_end_date must be on or after test_start_date.")
+
+    train_mask = (date_index >= train_start) & (date_index <= train_end)
+    val_mask = (date_index >= val_start) & (date_index <= val_end)
+    test_mask = date_index >= test_start
+    if test_end is not None:
+        test_mask &= date_index <= test_end
+
+    train_dates = date_index[train_mask]
+    val_dates = date_index[val_mask]
+    test_dates = date_index[test_mask]
+
+    if len(train_dates) < 2:
+        raise ValueError("Explicit train range produced fewer than 2 dates.")
+    if len(val_dates) < 2:
+        raise ValueError("Explicit validation range produced fewer than 2 dates.")
+    if len(test_dates) < 2:
+        raise ValueError("Explicit test range produced fewer than 2 dates.")
+
+    return {
+        "train_dates": train_dates,
+        "val_dates": val_dates,
+        "test_dates": test_dates,
+    }
+
+
 def _label_within_split(
     split_df: pd.DataFrame,
     feature_cols: Sequence[str],
@@ -110,6 +167,12 @@ def build_global_classification_dataset(
     years: int = 10,
     train_split: float = 0.8,
     val_split: float = 0.1,
+    explicit_train_start_date: str | None = None,
+    explicit_train_end_date: str | None = None,
+    explicit_val_start_date: str | None = None,
+    explicit_val_end_date: str | None = None,
+    explicit_test_start_date: str | None = None,
+    explicit_test_end_date: str | None = None,
 ) -> Dict[str, object]:
     """
     Build a pooled classification dataset across the full ticker universe.
@@ -169,7 +232,41 @@ def build_global_classification_dataset(
     pooled = pooled.sort_values(["date", "ticker"]).reset_index(drop=True)
     unique_dates = np.array(sorted(pooled["date"].unique()))
 
-    split_dates = _resolve_split_dates(unique_dates=unique_dates, train_split=train_split, val_split=val_split)
+    use_explicit_ranges = all(
+        [
+            explicit_train_start_date is not None,
+            explicit_train_end_date is not None,
+            explicit_val_start_date is not None,
+            explicit_val_end_date is not None,
+        ]
+    )
+    if use_explicit_ranges:
+        split_dates = _resolve_split_dates_explicit(
+            unique_dates=unique_dates,
+            train_start_date=str(explicit_train_start_date),
+            train_end_date=str(explicit_train_end_date),
+            val_start_date=str(explicit_val_start_date),
+            val_end_date=str(explicit_val_end_date),
+            test_start_date=explicit_test_start_date,
+            test_end_date=explicit_test_end_date,
+        )
+        split_strategy = "explicit_date_ranges"
+    else:
+        if any(
+            [
+                explicit_train_start_date is not None,
+                explicit_train_end_date is not None,
+                explicit_val_start_date is not None,
+                explicit_val_end_date is not None,
+                explicit_test_start_date is not None,
+                explicit_test_end_date is not None,
+            ]
+        ):
+            raise ValueError(
+                "Explicit split requires train_start/end and val_start/end dates together."
+            )
+        split_dates = _resolve_split_dates(unique_dates=unique_dates, train_split=train_split, val_split=val_split)
+        split_strategy = "ratio"
     train_dates = split_dates["train_dates"]
     val_dates = split_dates["val_dates"]
     test_dates = split_dates["test_dates"]
@@ -218,6 +315,7 @@ def build_global_classification_dataset(
 
     metadata: Dict[str, object] = {
         "scope": "global",
+        "split_strategy": split_strategy,
         "requested_ticker_count": len(requested_tickers),
         "used_ticker_count": len(used_tickers),
         "used_tickers": used_tickers,

@@ -8,7 +8,9 @@ from typing import Dict
 import numpy as np
 
 # Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DEFAULT_OUTPUT_DIR = os.path.join(PROJECT_ROOT, "models")
+sys.path.append(PROJECT_ROOT)
 
 from src.models.classification_utils import compute_classification_metrics
 from src.models.global_classification_data import build_global_classification_dataset
@@ -16,18 +18,26 @@ from src.models.io_utils import ensure_parent_dir, get_library_versions
 from src.models.random_forest_model import RandomForestModel
 from src.models.reproducibility import set_global_seeds
 
+# ==================== Hard-Coded Calendar Split ====================
+# Edit these dates directly when you want a different train/validation/test window.
+TRAIN_START_DATE = "2023-01-01"
+TRAIN_END_DATE = "2024-12-31"
+VALIDATION_START_DATE = "2025-01-01"
+VALIDATION_END_DATE = "2025-12-31"
+TEST_START_DATE = "2026-01-01"
+TEST_END_DATE = None  # Example: "2026-12-31"
+
+# Optional source data clipping window used before split assignment.
+DATA_WINDOW_START_DATE = TRAIN_START_DATE
+DATA_WINDOW_END_DATE = TEST_END_DATE
+
 
 def train_rf(
     tune: bool = True,
-    train_split: float = 0.8,
-    val_split: float = 0.1,
-    output_dir: str = "models",
+    output_dir: str = DEFAULT_OUTPUT_DIR,
     seed: int = 42,
     data_source: str = "db",
     db_path: str = "data/financial_advisor.db",
-    start_date: str | None = None,
-    end_date: str | None = None,
-    years: int = 10,
 ):
     print("Starting Random Forest global training...")
     set_global_seeds(seed=seed, include_tensorflow=False)
@@ -44,13 +54,8 @@ def train_rf(
         split_meta,
         test_tickers,
     ) = _prepare_global_data(
-        train_split=train_split,
-        val_split=val_split,
         data_source=data_source,
         db_path=db_path,
-        start_date=start_date,
-        end_date=end_date,
-        years=years,
     )
 
     print(f"Train shape: {X_train.shape}")
@@ -93,8 +98,14 @@ def train_rf(
         "model_name": model.get_name(),
         "model_path": model_path,
         "feature_columns": list(feature_cols),
-        "train_split": train_split,
-        "validation_split_within_train": val_split,
+        "hard_coded_split": {
+            "train_start": TRAIN_START_DATE,
+            "train_end": TRAIN_END_DATE,
+            "validation_start": VALIDATION_START_DATE,
+            "validation_end": VALIDATION_END_DATE,
+            "test_start": TEST_START_DATE,
+            "test_end": TEST_END_DATE,
+        },
         "train_shape": list(X_train.shape),
         "validation_shape": list(X_val.shape),
         "test_shape": list(X_test.shape),
@@ -119,15 +130,20 @@ def train_rf(
         "data_source": {
             "source": data_source,
             "db_path": db_path if data_source == "db" else None,
-            "start_date": start_date,
-            "end_date": end_date,
-            "years": years,
+            "start_date": DATA_WINDOW_START_DATE,
+            "end_date": DATA_WINDOW_END_DATE,
+            "years": None,
             "ticker": "ALL",
         },
         "data_coverage": split_meta,
         "split_config": {
-            "train_split": train_split,
-            "val_split": val_split,
+            "split_strategy": "hard_coded_calendar",
+            "train_start": TRAIN_START_DATE,
+            "train_end": TRAIN_END_DATE,
+            "validation_start": VALIDATION_START_DATE,
+            "validation_end": VALIDATION_END_DATE,
+            "test_start": TEST_START_DATE,
+            "test_end": TEST_END_DATE,
             "tune_hyperparameters": tune,
         },
         "metrics": metrics,
@@ -144,22 +160,21 @@ def train_rf(
 
 
 def _prepare_global_data(
-    train_split: float,
-    val_split: float,
     data_source: str,
     db_path: str,
-    start_date: str | None,
-    end_date: str | None,
-    years: int,
 ):
     dataset = build_global_classification_dataset(
         data_source=data_source,
         db_path=db_path,
-        start_date=start_date,
-        end_date=end_date,
-        years=years,
-        train_split=train_split,
-        val_split=val_split,
+        start_date=DATA_WINDOW_START_DATE,
+        end_date=DATA_WINDOW_END_DATE,
+        years=10,
+        explicit_train_start_date=TRAIN_START_DATE,
+        explicit_train_end_date=TRAIN_END_DATE,
+        explicit_val_start_date=VALIDATION_START_DATE,
+        explicit_val_end_date=VALIDATION_END_DATE,
+        explicit_test_start_date=TEST_START_DATE,
+        explicit_test_end_date=TEST_END_DATE,
     )
     return (
         dataset["X_train"],
@@ -204,14 +219,12 @@ def _per_ticker_metrics(model, X_test: np.ndarray, y_test: np.ndarray, test_tick
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train global Random Forest model across all available tickers.")
     parser.add_argument("--no-tune", action="store_true", help="Skip hyperparameter tuning")
-    parser.add_argument("--train-split", type=float, default=0.8, help="Chronological train split")
     parser.add_argument(
-        "--val-split",
-        type=float,
-        default=0.1,
-        help="Validation split ratio within training region",
+        "--output-dir",
+        type=str,
+        default=DEFAULT_OUTPUT_DIR,
+        help="Directory to save model artifacts (default: project_root/models).",
     )
-    parser.add_argument("--output-dir", type=str, default="models", help="Directory to save model artifacts")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument(
         "--data-source",
@@ -221,20 +234,12 @@ if __name__ == "__main__":
         help="Training data source",
     )
     parser.add_argument("--db-path", type=str, default="data/financial_advisor.db", help="SQLite DB path")
-    parser.add_argument("--start-date", type=str, default=None, help="Start date (YYYY-MM-DD)")
-    parser.add_argument("--end-date", type=str, default=None, help="End date (YYYY-MM-DD)")
-    parser.add_argument("--years", type=int, default=10, help="Fallback lookback years when start-date is omitted")
     args = parser.parse_args()
 
     train_rf(
         tune=not args.no_tune,
-        train_split=args.train_split,
-        val_split=args.val_split,
         output_dir=args.output_dir,
         seed=args.seed,
         data_source=args.data_source,
         db_path=args.db_path,
-        start_date=args.start_date,
-        end_date=args.end_date,
-        years=args.years,
     )
