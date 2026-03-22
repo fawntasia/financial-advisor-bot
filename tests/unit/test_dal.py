@@ -345,6 +345,29 @@ class TestDataAccessLayer:
         assert results[0]["positive_score"] == 0.8
         assert results[0]["sentiment_label"] == "positive"
 
+    def test_prune_news_history(self, dal):
+        """Test pruning old news/sentiment rows while keeping recent data."""
+        dal.insert_ticker("AAPL", "Apple Inc.")
+        recent_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        recent_day = recent_ts[:10]
+
+        old_id = dal.insert_news_headline("AAPL", "Very old news", "Source", "old-url", "2000-01-01 09:00:00")
+        new_id = dal.insert_news_headline("AAPL", "Recent news", "Source", "new-url", recent_ts)
+        dal.insert_sentiment_score(old_id, 0.1, 0.8, 0.1, "negative", 0.9)
+        dal.insert_sentiment_score(new_id, 0.8, 0.1, 0.1, "positive", 0.9)
+        dal.insert_daily_sentiment("AAPL", "2000-01-01", 0.1, 0.8, 0.1, "negative", 0.8, 1)
+        dal.insert_daily_sentiment("AAPL", recent_day, 0.8, 0.1, 0.1, "positive", 0.8, 1)
+
+        stats = dal.prune_news_history(keep_days=30, prune_daily_sentiment=True)
+
+        assert stats["pruned_headlines"] == 1
+        assert stats["pruned_scores"] == 1
+        assert stats["pruned_daily_sentiment"] >= 1
+        assert dal.get_sentiment_by_news_id(old_id) is None
+        assert dal.get_sentiment_by_news_id(new_id) is not None
+        assert dal.get_daily_sentiment("AAPL", "2000-01-01") is None
+        assert dal.get_daily_sentiment("AAPL", recent_day) is not None
+
     # ==================== Sentiment Scores ====================
 
     def test_sentiment_operations(self, dal):

@@ -1,5 +1,6 @@
 import sqlite3
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -62,7 +63,7 @@ def test_data_pipeline_end_to_end(tmp_path, sample_prices, monkeypatch):
             "title": "Mock News for {query}",
             "source": "Mock Finance",
             "url": "https://example.com/mock",
-            "published_at": "2024-01-02 00:00:00",
+            "published_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "summary": "Mock summary"
         }
     ]
@@ -77,7 +78,7 @@ def test_data_pipeline_end_to_end(tmp_path, sample_prices, monkeypatch):
     monkeypatch.setattr(ingest_data, "get_news_client", mock_get_news_client)
 
     ingest_data.ingest_stock_data(dal, days=5)
-    ingest_data.ingest_news_data(dal, days=1)
+    ingest_data.ingest_news_data(dal, provider="auto", run_sentiment=False)
 
     stored_prices = dal.get_stock_prices("MSFT", "2024-01-01", "2024-01-03")
     assert not stored_prices.empty
@@ -89,7 +90,7 @@ def test_data_pipeline_end_to_end(tmp_path, sample_prices, monkeypatch):
 
 
 @pytest.mark.integration
-def test_news_ingestion_round_robin_cursor(tmp_path, monkeypatch):
+def test_news_ingestion_processes_all_tickers(tmp_path, monkeypatch):
     db_path = tmp_path / "test_financial_advisor.db"
     conn = sqlite3.connect(db_path)
     create_tables(conn)
@@ -105,7 +106,7 @@ def test_news_ingestion_round_robin_cursor(tmp_path, monkeypatch):
             "title": "Mock News for {query}",
             "source": "Mock Finance",
             "url": "https://example.com/mock",
-            "published_at": "2024-01-02 00:00:00",
+            "published_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "summary": "Mock summary",
             "provider": "mock",
         }
@@ -115,16 +116,17 @@ def test_news_ingestion_round_robin_cursor(tmp_path, monkeypatch):
         return MockNewsClient(mock_articles)
 
     monkeypatch.setattr(ingest_data, "get_news_client", mock_get_news_client)
+    monkeypatch.setattr(
+        ingest_data,
+        "_run_automatic_sentiment",
+        lambda dal: {"status": "completed", "headlines": 3, "scores_inserted": 3, "aggregate_days": 1},
+    )
 
-    ingest_data.ingest_news_data(dal, days=1, provider="auto", limit=1, max_tickers=2)
+    stats = ingest_data.ingest_news_data(dal, provider="auto", run_sentiment=True)
 
-    assert dal.get_user_preference("news_round_robin_cursor") == "2"
+    assert stats["selected_tickers"] == 3
+    assert stats["processed"] == 3
+    assert stats["sentiment"]["status"] == "completed"
     assert dal.get_news_by_ticker("AAA")
     assert dal.get_news_by_ticker("BBB")
-    assert not dal.get_news_by_ticker("CCC")
-
-    ingest_data.ingest_news_data(dal, days=1, provider="auto", limit=1, max_tickers=2)
-
-    # Second run starts at cursor=2, so CCC then wraps to AAA.
-    assert dal.get_user_preference("news_round_robin_cursor") == "1"
     assert dal.get_news_by_ticker("CCC")

@@ -193,6 +193,39 @@ class DataAccessLayer:
             )
             row = cursor.fetchone()
             return dict(row) if row else None
+
+    def get_latest_technical_indicators(self, ticker: str, as_of_date: Optional[str] = None) -> Optional[Dict]:
+        """
+        Get the latest technical indicators for a ticker, optionally bounded by an as-of date.
+
+        Args:
+            ticker: Stock ticker symbol.
+            as_of_date: Optional YYYY-MM-DD upper-bound date.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if as_of_date:
+                cursor.execute(
+                    """
+                    SELECT * FROM technical_indicators
+                    WHERE ticker = ? AND date <= ?
+                    ORDER BY date DESC
+                    LIMIT 1
+                    """,
+                    (ticker, as_of_date),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT * FROM technical_indicators
+                    WHERE ticker = ?
+                    ORDER BY date DESC
+                    LIMIT 1
+                    """,
+                    (ticker,),
+                )
+            row = cursor.fetchone()
+            return dict(row) if row else None
     
     def bulk_insert_indicators(self, records: List[Dict]):
         """Bulk insert technical indicator records."""
@@ -293,6 +326,59 @@ class DataAccessLayer:
                 (date,)
             )
             return [dict(row) for row in cursor.fetchall()]
+
+    def prune_news_history(self, keep_days: int = 30, prune_daily_sentiment: bool = True) -> Dict[str, int]:
+        """
+        Prune historical news/sentiment rows older than `keep_days`.
+
+        Returns row counts for each affected table.
+        """
+        keep_window = max(1, int(keep_days))
+        date_modifier = f"-{keep_window} day"
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                DELETE FROM sentiment_scores
+                WHERE news_id IN (
+                    SELECT id
+                    FROM news_headlines
+                    WHERE COALESCE(date(published_at), date(fetched_at)) < date('now', ?)
+                )
+                """,
+                (date_modifier,),
+            )
+            pruned_scores = cursor.rowcount if cursor.rowcount != -1 else 0
+
+            cursor.execute(
+                """
+                DELETE FROM news_headlines
+                WHERE COALESCE(date(published_at), date(fetched_at)) < date('now', ?)
+                """,
+                (date_modifier,),
+            )
+            pruned_headlines = cursor.rowcount if cursor.rowcount != -1 else 0
+
+            pruned_daily = 0
+            if prune_daily_sentiment:
+                cursor.execute(
+                    """
+                    DELETE FROM daily_sentiment
+                    WHERE date < date('now', ?)
+                    """,
+                    (date_modifier,),
+                )
+                pruned_daily = cursor.rowcount if cursor.rowcount != -1 else 0
+
+            conn.commit()
+
+        return {
+            "pruned_headlines": pruned_headlines,
+            "pruned_scores": pruned_scores,
+            "pruned_daily_sentiment": pruned_daily,
+        }
 
     def get_recent_scored_news_by_ticker(self, ticker: str, limit: int = 50) -> List[Dict]:
         """Get recent ticker headlines joined with their sentiment scores."""

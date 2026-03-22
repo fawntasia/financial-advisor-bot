@@ -1,7 +1,6 @@
 """Streamlit view components for the Financial Advisor Bot UI."""
 
 import html
-from datetime import datetime
 from math import isnan
 from pathlib import Path
 from time import perf_counter
@@ -10,7 +9,13 @@ from typing import Dict, List, Optional, Sequence
 import pandas as pd
 import streamlit as st
 
-from scripts.ingest_data import ingest_data, ingest_news_data
+from scripts.ingest_data import (
+    DEFAULT_NEWS_ARTICLES_PER_TICKER,
+    DEFAULT_NEWS_LOOKBACK_DAYS,
+    DEFAULT_NEWS_RETENTION_DAYS,
+    ingest_data,
+    ingest_news_data,
+)
 from src.database.dal import DataAccessLayer
 from src.ui.charts import ChartGenerator
 from src.ui.classification_visualization import generate_classification_signal_data
@@ -241,42 +246,6 @@ def _signed_sentiment_score(avg_positive, avg_negative) -> float:
     except (TypeError, ValueError):
         neg = 0.0
     return pos - neg
-
-
-def _run_sentiment_job(
-    dal: DataAccessLayer,
-    scope: str,
-    batch_size: int,
-    limit: int,
-    model_path: str = "models/finbert",
-    ticker: str = "",
-    date_str: str = "",
-):
-    """Execute a sentiment analysis job and return pipeline stats."""
-    try:
-        from src.nlp.sentiment_pipeline import SentimentPipeline
-    except Exception as exc:
-        raise RuntimeError(
-            "Sentiment dependencies are not available. Install/repair transformers + torch, then retry."
-        ) from exc
-
-    pipeline = SentimentPipeline(dal=dal, model_path=model_path)
-    if pipeline.loader.model is None or pipeline.loader.tokenizer is None:
-        raise RuntimeError(
-            "FinBERT model is not loaded. Ensure files exist in models/finbert (or provide a valid model path)."
-        )
-
-    if scope == "ticker":
-        return pipeline.process_unprocessed_for_ticker(
-            ticker=ticker,
-            batch_size=batch_size,
-            limit=limit,
-        )
-
-    if scope == "date":
-        return pipeline.process_date(date=date_str, batch_size=batch_size)
-
-    return pipeline.process_unprocessed(batch_size=batch_size, limit=limit)
 
 
 def _empty_market_snapshot() -> Dict:
@@ -765,69 +734,19 @@ def _render_classifier_tab(ticker: str, dal: DataAccessLayer, model_type: str, l
 
 
 def _render_sentiment_tab(ticker: str, dal: DataAccessLayer, chart_generator: ChartGenerator):
-    """Render per-ticker sentiment controls and visualizations."""
+    """Render per-ticker sentiment visualizations."""
     st.subheader(
         "Ticker Sentiment",
         help="Daily aggregate sentiment from FinBERT-scored headlines for this ticker.",
     )
-
-    with st.expander("Run FinBERT For This Ticker", expanded=False):
-        c1, c2, c3 = st.columns(3)
-        batch_size = c1.number_input(
-            "Batch Size",
-            min_value=1,
-            max_value=256,
-            value=32,
-            step=1,
-            key=f"sent_batch_{ticker}",
-        )
-        limit = c2.number_input(
-            "Unprocessed Headline Limit",
-            min_value=1,
-            max_value=5000,
-            value=500,
-            step=50,
-            key=f"sent_limit_{ticker}",
-        )
-        model_path = c3.text_input(
-            "FinBERT Model Path",
-            value="models/finbert",
-            key=f"sent_model_path_{ticker}",
-        )
-
-        if st.button(
-            f"Analyze {ticker} Headlines",
-            type="primary",
-            use_container_width=True,
-            key=f"run_sentiment_{ticker}",
-        ):
-            with st.spinner(f"Running FinBERT sentiment analysis for {ticker}..."):
-                start = perf_counter()
-                try:
-                    stats = _run_sentiment_job(
-                        dal=dal,
-                        scope="ticker",
-                        batch_size=int(batch_size),
-                        limit=int(limit),
-                        model_path=(model_path or "models/finbert").strip(),
-                        ticker=ticker,
-                    )
-                except Exception as exc:
-                    st.error(f"Sentiment run failed: {exc}")
-                else:
-                    elapsed = perf_counter() - start
-                    st.success(f"Sentiment analysis completed in {elapsed:.1f}s.")
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("Headlines Processed", str(stats.get("headlines", 0)))
-                    m2.metric("Scores Inserted", str(stats.get("scores_inserted", 0)))
-                    m3.metric("Aggregate Days Refreshed", str(stats.get("aggregate_days", 0)))
+    st.caption("Sentiment scoring is executed automatically by the unified ingestion pipeline.")
 
     controls = st.columns(2)
     history_days = controls[0].slider(
         "Sentiment History Window (Days)",
         min_value=7,
         max_value=365,
-        value=60,
+        value=365,
         step=1,
         key=f"sent_history_days_{ticker}",
     )
@@ -835,7 +754,7 @@ def _render_sentiment_tab(ticker: str, dal: DataAccessLayer, chart_generator: Ch
         "Recent Scored Headlines",
         min_value=10,
         max_value=100,
-        value=25,
+        value=100,
         step=5,
         key=f"sent_rows_{ticker}",
     )
@@ -855,7 +774,7 @@ def _render_sentiment_tab(ticker: str, dal: DataAccessLayer, chart_generator: Ch
     else:
         st.info(
             f"No daily sentiment aggregates are available for {ticker} yet. "
-            "Run news ingestion first, then run FinBERT scoring."
+            "Run the unified news ingestion pipeline to populate sentiment."
         )
 
     history_rows = dal.get_daily_sentiment_history(ticker=ticker, days=int(history_days), limit=400)
@@ -1113,7 +1032,7 @@ def show_disclaimer():
 def show_data_pipeline():
     """Render controls to run ingestion jobs and validate recent news ingestion output."""
     st.header("Data Pipeline")
-    st.write("Run ingestion jobs from the UI and validate recent fetched financial news.")
+    st.write("Run ingestion jobs from the UI with a simplified news pipeline and automatic sentiment scoring.")
 
     dal = st.session_state.get("dal")
     if dal is None:
@@ -1121,134 +1040,69 @@ def show_data_pipeline():
         st.session_state.dal = dal
 
     with st.container():
-        st.subheader("Run News Ingestion")
-        col1, col2 = st.columns(2)
-        with col1:
-            provider = st.selectbox(
-                "News Provider",
-                options=["auto", "rss", "newsapi", "alphavantage", "mock"],
-                index=0,
-                help="`auto` uses RSS first and API fallbacks when keys are available.",
-            )
-            days = st.number_input("Lookback Days", min_value=1, max_value=30, value=1, step=1)
-        with col2:
-            limit = st.number_input("Articles per Ticker", min_value=1, max_value=50, value=5, step=1)
-            max_tickers = st.number_input("Tickers per Run (Round-Robin)", min_value=1, max_value=503, value=25, step=1)
+        st.subheader("Run News Ingestion + Automatic Sentiment")
+        provider = st.selectbox(
+            "News Provider",
+            options=["auto", "rss", "newsapi", "alphavantage", "mock"],
+            index=0,
+            help="`auto` uses RSS first and API fallbacks when keys are available.",
+        )
+        st.caption(
+            f"Fixed pipeline: all tracked tickers, {DEFAULT_NEWS_ARTICLES_PER_TICKER} articles per ticker, "
+            f"{DEFAULT_NEWS_LOOKBACK_DAYS}-day lookback, {DEFAULT_NEWS_RETENTION_DAYS}-day storage retention."
+        )
 
-        if st.button("Run News Ingestion Now", type="primary", use_container_width=True):
-            with st.spinner("Running news ingestion..."):
+        if st.button("Run News + Sentiment Now", type="primary", use_container_width=True):
+            with st.spinner("Running news ingestion and automatic sentiment scoring..."):
                 start = perf_counter()
                 stats = ingest_news_data(
                     dal=dal,
-                    days=int(days),
                     provider=provider,
-                    limit=int(limit),
-                    max_tickers=int(max_tickers),
+                    run_sentiment=True,
                 )
                 elapsed = perf_counter() - start
 
-            st.success(f"News ingestion completed in {elapsed:.1f}s.")
+            sentiment_stats = stats.get("sentiment", {}) or {}
+            st.success(f"News and sentiment pipeline completed in {elapsed:.1f}s.")
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Tickers Selected", str(stats.get("selected_tickers", 0)))
-            m2.metric("Tickers Processed", str(stats.get("processed", 0)))
+            m1.metric("Tickers Processed", str(stats.get("processed", 0)))
             m3.metric("Inserted Articles", str(stats.get("records_inserted", 0)))
-            m4.metric("Duplicates Skipped", str(stats.get("duplicates", 0)))
+            m2.metric("Sentiment Scores", str(sentiment_stats.get("scores_inserted", 0)))
+            m4.metric("Pruned Headlines", str(stats.get("pruned_headlines", 0)))
             st.caption(
-                f"Cursor moved: {stats.get('cursor_start', 0)} -> {stats.get('cursor_end', 0)} | "
-                f"Failed tickers: {stats.get('failed', 0)}"
+                f"Duplicates skipped: {stats.get('duplicates', 0)} | "
+                f"Failed tickers: {stats.get('failed', 0)} | "
+                f"Sentiment status: {sentiment_stats.get('status', 'unknown')}"
             )
 
     st.markdown("---")
-    with st.expander("Optional: Run Full Pipeline (Stock + News)", expanded=False):
-        st.warning("This can take several minutes when many tickers need stock updates.")
+    with st.expander("Optional: Run Full Pipeline (Stock + Indicators + News + Sentiment)", expanded=False):
+        st.warning("This can take several minutes when many tickers need stock and indicator updates.")
         if st.button("Run Full Pipeline", use_container_width=True):
             with st.spinner("Running full pipeline..."):
                 start = perf_counter()
                 stats = ingest_data(
-                    news_days=int(days),
                     news_provider=provider,
-                    news_limit=int(limit),
-                    news_max_tickers=int(max_tickers),
                 )
                 elapsed = perf_counter() - start
 
             stock_stats = stats.get("stock", {}) or {}
+            indicator_stats = stats.get("indicators", {}) or {}
             news_stats = stats.get("news", {}) or {}
+            sentiment_stats = news_stats.get("sentiment", {}) or stats.get("sentiment", {}) or {}
             st.success(f"Full pipeline completed in {elapsed:.1f}s.")
-            c1, c2, c3 = st.columns(3)
+            c1, c2, c3, c4 = st.columns(4)
             c1.metric("Stocks Processed", str(stock_stats.get("processed", 0)))
-            c2.metric("Stock Rows Inserted", str(stock_stats.get("records_inserted", 0)))
+            c2.metric("Indicators Upserted", str(indicator_stats.get("records_upserted", 0)))
             c3.metric("News Rows Inserted", str(news_stats.get("records_inserted", 0)))
-
-    st.markdown("---")
-    with st.container():
-        st.subheader("Run Sentiment Analysis")
-        st.caption("Score unprocessed news headlines with FinBERT and refresh daily ticker aggregates.")
-
-        run_mode = st.selectbox(
-            "Sentiment Scope",
-            options=["Selected Ticker", "All Unprocessed Headlines", "Specific Date"],
-            index=0,
-        )
-
-        ticker = st.session_state.get("ticker", "AAPL").upper().strip()
-        run_date = datetime.now().date()
-        if run_mode == "Selected Ticker":
-            st.info(f"Current ticker from sidebar: **{ticker}**")
-        elif run_mode == "Specific Date":
-            run_date = st.date_input("Date to Process", value=datetime.now().date())
-
-        s1, s2, s3 = st.columns(3)
-        sentiment_batch_size = s1.number_input("Sentiment Batch Size", min_value=1, max_value=256, value=32, step=1)
-        sentiment_limit = s2.number_input(
-            "Sentiment Headline Limit",
-            min_value=1,
-            max_value=20000,
-            value=2000,
-            step=100,
-            help="Only used for ticker/all-unprocessed modes.",
-        )
-        sentiment_model_path = s3.text_input("Sentiment Model Path", value="models/finbert")
-
-        if st.button("Run Sentiment Analysis", use_container_width=True):
-            with st.spinner("Running sentiment analysis..."):
-                start = perf_counter()
-                try:
-                    if run_mode == "Selected Ticker":
-                        stats = _run_sentiment_job(
-                            dal=dal,
-                            scope="ticker",
-                            batch_size=int(sentiment_batch_size),
-                            limit=int(sentiment_limit),
-                            model_path=(sentiment_model_path or "models/finbert").strip(),
-                            ticker=ticker,
-                        )
-                    elif run_mode == "Specific Date":
-                        stats = _run_sentiment_job(
-                            dal=dal,
-                            scope="date",
-                            batch_size=int(sentiment_batch_size),
-                            limit=int(sentiment_limit),
-                            model_path=(sentiment_model_path or "models/finbert").strip(),
-                            date_str=str(run_date),
-                        )
-                    else:
-                        stats = _run_sentiment_job(
-                            dal=dal,
-                            scope="all",
-                            batch_size=int(sentiment_batch_size),
-                            limit=int(sentiment_limit),
-                            model_path=(sentiment_model_path or "models/finbert").strip(),
-                        )
-                except Exception as exc:
-                    st.error(f"Sentiment analysis failed: {exc}")
-                else:
-                    elapsed = perf_counter() - start
-                    st.success(f"Sentiment analysis completed in {elapsed:.1f}s.")
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("Headlines Processed", str(stats.get("headlines", 0)))
-                    m2.metric("Scores Inserted", str(stats.get("scores_inserted", 0)))
-                    m3.metric("Aggregate Days Refreshed", str(stats.get("aggregate_days", 0)))
+            c4.metric("Sentiment Scores", str(sentiment_stats.get("scores_inserted", 0)))
+            st.caption(
+                f"Indicator tickers processed: {indicator_stats.get('processed', 0)} / "
+                f"{indicator_stats.get('selected_tickers', 0)} | "
+                f"Indicator failures: {indicator_stats.get('failed', 0)} | "
+                f"News failures: {news_stats.get('failed', 0)} | "
+                f"Sentiment status: {sentiment_stats.get('status', 'unknown')}"
+            )
 
     st.markdown("---")
     st.subheader("Recent News Records")

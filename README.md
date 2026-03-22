@@ -106,16 +106,15 @@ python scripts/ingest_data.py
 
 News ingestion defaults are now free-first:
 - `--news-provider auto` (default): tries Yahoo Finance RSS first (no key required), then falls back to NewsAPI / Alpha Vantage when keys are available.
-- Round-robin ticker coverage: each run ingests a bounded subset and advances a persisted cursor (`news_round_robin_cursor`) in `user_preferences`.
+- Fixed scope: each run ingests all tracked tickers.
+- Fixed storage window: news is fetched with a 10-day lookback and old news/sentiment rows are pruned beyond 10 days.
+- Automatic sentiment: FinBERT scoring runs automatically right after news ingestion (when local sentiment dependencies/model are available).
 
 Examples:
 
 ```bash
-# Ingest prices + news using defaults (auto provider, 25 tickers/run, 10 articles/ticker)
+# Ingest prices + news using defaults (auto provider, all tickers, 10-day news window)
 python scripts/ingest_data.py
-
-# Increase daily ticker coverage while staying round-robin
-python scripts/ingest_data.py --news-max-tickers 50 --news-limit 5
 
 # Force RSS-only mode
 python scripts/ingest_data.py --news-provider rss
