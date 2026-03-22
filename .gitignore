@@ -49,6 +49,8 @@ models/*.pth
 models/*.h5
 models/*.pkl
 models/*.json
+models/*.keras
+models/*_scalers.joblib
 models/finbert/
 models/llama3/
 *.bin
@@ -92,4 +94,5 @@ temp/
 .sisyphus/
 results/
 data/download_checkpoint.json
-C
+todo.md
+agents.md

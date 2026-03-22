@@ -44,6 +44,14 @@ class DummyColumn:
         self.calls = calls
         self.index = index
 
+    def __enter__(self):
+        self.calls.append(("column.enter", self.index))
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.calls.append(("column.exit", self.index))
+        return False
+
     def metric(self, label, value, delta=None, help=None):
         self.calls.append(("column.metric", self.index, label, value, delta, help))
 
@@ -124,11 +132,15 @@ class FakeStreamlit(types.SimpleNamespace):
         return DummyStatus(self.calls, label, expanded)
 
     def columns(self, count):
-        self.calls.append(("columns", count))
-        return [DummyColumn(self.calls, index) for index in range(count)]
+        if isinstance(count, (list, tuple)):
+            width = len(count)
+        else:
+            width = int(count)
+        self.calls.append(("columns", width))
+        return [DummyColumn(self.calls, index) for index in range(width)]
 
-    def markdown(self, text):
-        self.calls.append(("markdown", text))
+    def markdown(self, text, unsafe_allow_html=False):
+        self.calls.append(("markdown", text, unsafe_allow_html))
 
     def caption(self, text):
         self.calls.append(("caption", text))
@@ -139,6 +151,9 @@ class FakeStreamlit(types.SimpleNamespace):
     def tabs(self, labels):
         self.calls.append(("tabs", tuple(labels)))
         return [DummyTab(self.calls, label) for label in labels]
+
+    def dataframe(self, data, use_container_width=False, hide_index=False):
+        self.calls.append(("dataframe", data, use_container_width, hide_index))
 
 
 def _load_views(fake_streamlit):
@@ -421,6 +436,18 @@ def test_show_dashboard_updates_status_and_metrics(monkeypatch):
             }
         ],
     )
+    monkeypatch.setattr(
+        views,
+        "_fetch_dashboard_sparklines",
+        lambda dal, top_gainer_ticker, top_loser_ticker: {
+            "breadth_ratio": [0.42, 0.5, 0.58],
+            "cross_sectional_volatility": [0.02, 0.018, 0.019],
+            "weighted_net_score": [0.03, 0.07, 0.11],
+            "avg_confidence": [0.70, 0.72, 0.74],
+            "top_gainer_close": [800, 830, 850],
+            "top_loser_close": [210, 200, 190],
+        },
+    )
 
     views.show_dashboard()
 
@@ -428,19 +455,19 @@ def test_show_dashboard_updates_status_and_metrics(monkeypatch):
     assert ("status", "Loading market data...", True) in fake_st.calls
     assert ("status.update", {"label": "Market Data Loaded", "state": "complete", "expanded": False}) in fake_st.calls
     assert fake_st.calls.count(("columns", 3)) >= 2
-    metric_calls = [call for call in fake_st.calls if call[0] == "column.metric"]
-    metric_labels = [call[2] for call in metric_calls]
-    assert "S&P 500 Breadth" in metric_labels
-    assert "Market Volatility" in metric_labels
-    assert "Sentiment Score" in metric_labels
-    assert "Top Gainer" in metric_labels
-    assert "Top Loser" in metric_labels
-    assert "Sentiment Confidence" in metric_labels
+    assert ("columns", 2) in fake_st.calls
+    assert any(
+        call[0] == "markdown" and "dashboard-kpi-card" in call[1]
+        for call in fake_st.calls
+    )
     assert any(call[0] == "subheader" and "Top Movers" in call[1] for call in fake_st.calls)
-    assert any(call[0] == "write" and "Top Gainers (latest session):" in call[1] for call in fake_st.calls)
-    assert any(call[0] == "write" and "Top Losers (latest session):" in call[1] for call in fake_st.calls)
+    dataframe_calls = [call for call in fake_st.calls if call[0] == "dataframe"]
+    assert len(dataframe_calls) >= 2
     assert any(call[0] == "subheader" and "Latest Scored Headlines" in call[1] for call in fake_st.calls)
-    assert any(call[0] == "write" and "[AAPL]" in call[1] for call in fake_st.calls)
+    assert any(
+        call[0] == "markdown" and "headline-pill ticker" in call[1]
+        for call in fake_st.calls
+    )
 
 
 def test_show_disclaimer_renders_text():
@@ -449,5 +476,5 @@ def test_show_disclaimer_renders_text():
 
     views.show_disclaimer()
 
-    assert ("markdown", "---") in fake_st.calls
+    assert ("markdown", "---", False) in fake_st.calls
     assert any(call[0] == "caption" and "Mandatory Financial Disclaimer" in call[1] for call in fake_st.calls)

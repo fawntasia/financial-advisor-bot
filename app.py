@@ -9,6 +9,7 @@ import streamlit as st
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 from src.database.dal import DataAccessLayer
+from src.llm.llama_loader import DEFAULT_MODEL_PATH
 from src.ui.chat import ChatManager
 from src.ui.views import (
     show_chat_interface,
@@ -125,6 +126,14 @@ def initialize_session_state():
         st.session_state.dal = DataAccessLayer()
     if "chat_manager" not in st.session_state:
         st.session_state.chat_manager = ChatManager(st.session_state.dal)
+    else:
+        # Self-heal a stale mock chat manager when a real local model exists now.
+        chat_manager = st.session_state.chat_manager
+        llm = getattr(chat_manager, "llm", None)
+        llm_mock_mode = getattr(llm, "mock_mode", None)
+        if isinstance(llm_mock_mode, bool) and llm_mock_mode and os.path.exists(DEFAULT_MODEL_PATH):
+            st.session_state.pop("llama_model", None)
+            st.session_state.chat_manager = ChatManager(st.session_state.dal)
     if "ticker_universe" not in st.session_state:
         try:
             st.session_state.ticker_universe = st.session_state.dal.get_ticker_universe()

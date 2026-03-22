@@ -6,8 +6,13 @@ from typing import Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DEFAULT_MODEL_PATH = os.path.join(
+    PROJECT_ROOT, "models", "llama3", "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+)
+
 class LlamaLoader:
-    def __init__(self, model_path: str = "models/llama3/Meta-Llama-3-8B-Instruct.Q4_K_M.gguf", n_ctx: int = 2048):
+    def __init__(self, model_path: str = DEFAULT_MODEL_PATH, n_ctx: int = 2048):
         self.model_path = model_path
         self.n_ctx = n_ctx
         self.model = None
@@ -66,7 +71,7 @@ class LlamaLoader:
 
         try:
             output = self.model(
-                f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+                f"<|start_header_id|>user<|end_header_id|>\n\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
                 max_tokens=max_tokens,
                 temperature=temperature,
                 top_p=top_p,

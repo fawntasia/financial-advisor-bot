@@ -20,6 +20,9 @@ transformers>=4.30.0
 torch>=2.0.0
 sentencepiece>=0.1.99
 accelerate>=0.20.0
+# Prebuilt CPU wheels for llama-cpp-python (avoids local C++ toolchain build on Windows)
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+llama-cpp-python==0.3.2
 
 # Web App
 streamlit>=1.28.0

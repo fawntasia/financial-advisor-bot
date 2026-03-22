@@ -1,10 +1,11 @@
 """Streamlit view components for the Financial Advisor Bot UI."""
 
+import html
 from datetime import datetime
 from math import isnan
 from pathlib import Path
 from time import perf_counter
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 
 import pandas as pd
 import streamlit as st
@@ -66,6 +67,167 @@ def _format_signed_percent(value, digits: int = 2) -> str:
     if isnan(numeric):
         return "N/A"
     return f"{numeric:+.{digits}%}"
+
+
+def _clean_series(values: Sequence[Optional[float]]) -> List[float]:
+    """Return finite float values for sparkline rendering."""
+    cleaned: List[float] = []
+    for value in values:
+        if value is None:
+            continue
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            continue
+        if isnan(numeric):
+            continue
+        cleaned.append(numeric)
+    return cleaned
+
+
+def _build_sparkline_svg(values: Sequence[Optional[float]], color: str = "#4facfe") -> str:
+    """Build a compact SVG sparkline."""
+    points = _clean_series(values)
+    if len(points) < 2:
+        return (
+            '<svg class="kpi-sparkline" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">'
+            '<line x1="0" y1="13" x2="100" y2="13" stroke="rgba(255,255,255,0.20)" stroke-width="1.2" />'
+            "</svg>"
+        )
+
+    min_v = min(points)
+    max_v = max(points)
+    span = max(max_v - min_v, 1e-9)
+    x_step = 100.0 / (len(points) - 1)
+
+    poly_points: List[str] = []
+    for idx, value in enumerate(points):
+        x_coord = idx * x_step
+        y_norm = (value - min_v) / span
+        y_coord = 23.0 - (y_norm * 20.0)
+        poly_points.append(f"{x_coord:.2f},{y_coord:.2f}")
+
+    return (
+        '<svg class="kpi-sparkline" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">'
+        f'<polyline points="{" ".join(poly_points)}" fill="none" stroke="{color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />'
+        "</svg>"
+    )
+
+
+def _render_dashboard_styles():
+    """Inject dashboard-specific styling."""
+    st.markdown(
+        """
+<style>
+.dashboard-kpi-card {
+    background: rgba(26, 28, 35, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    padding: 0.9rem 1rem 0.65rem 1rem;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.dashboard-kpi-card.tint-gain {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.40);
+}
+.dashboard-kpi-card.tint-loss {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.40);
+}
+.dashboard-kpi-label {
+    color: #9aa3af;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+}
+.dashboard-kpi-value {
+    color: #f8fafc;
+    font-size: 2.05rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 0.2rem;
+}
+.dashboard-kpi-sub {
+    color: #8b95a5;
+    font-size: 0.86rem;
+    font-weight: 500;
+}
+.kpi-sparkline {
+    width: 100%;
+    height: 28px;
+    margin-top: 0.5rem;
+}
+.headline-row {
+    padding: 0.45rem 0.15rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.headline-pill {
+    display: inline-block;
+    padding: 0.12rem 0.48rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-right: 0.35rem;
+}
+.headline-pill.ticker {
+    background: rgba(79, 172, 254, 0.18);
+    color: #9ecbff;
+}
+.headline-pill.positive {
+    background: rgba(34, 197, 94, 0.18);
+    color: #86efac;
+}
+.headline-pill.negative {
+    background: rgba(239, 68, 68, 0.20);
+    color: #fca5a5;
+}
+.headline-pill.neutral {
+    background: rgba(156, 163, 175, 0.20);
+    color: #d1d5db;
+}
+.headline-pill.confidence {
+    background: rgba(148, 163, 184, 0.15);
+    color: #cbd5e1;
+}
+.headline-text {
+    color: #e5e7eb;
+    font-size: 0.93rem;
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_kpi_card(
+    label: str,
+    value_text: str,
+    sub_text: str,
+    sparkline_values: Sequence[Optional[float]],
+    spark_color: str = "#4facfe",
+    tint: str = "",
+):
+    """Render a custom KPI card with sparkline and hierarchy-focused typography."""
+    tint_class = ""
+    if tint == "gain":
+        tint_class = " tint-gain"
+    elif tint == "loss":
+        tint_class = " tint-loss"
+
+    card_html = (
+        f'<div class="dashboard-kpi-card{tint_class}">'
+        f'<div class="dashboard-kpi-label">{html.escape(label)}</div>'
+        f'<div class="dashboard-kpi-value">{html.escape(value_text)}</div>'
+        f'<div class="dashboard-kpi-sub">{html.escape(sub_text)}</div>'
+        f'{_build_sparkline_svg(sparkline_values, color=spark_color)}'
+        "</div>"
+    )
+    st.markdown(card_html, unsafe_allow_html=True)
 
 
 def _signed_sentiment_score(avg_positive, avg_negative) -> float:
@@ -314,6 +476,186 @@ def _fetch_recent_scored_headlines(dal: DataAccessLayer, limit: int = 5) -> List
             params=[int(limit)],
         )
     return headlines_df.to_dict("records")
+
+
+def _fetch_market_metric_history(dal: DataAccessLayer, days: int = 90) -> Dict[str, List[float]]:
+    """Fetch daily market breadth/volatility history for sparkline cards."""
+    with dal.get_connection() as conn:
+        returns_df = pd.read_sql_query(
+            """
+            WITH price_lags AS (
+                SELECT
+                    s.date,
+                    s.ticker,
+                    s.close,
+                    LAG(s.close) OVER (
+                        PARTITION BY s.ticker
+                        ORDER BY s.date
+                    ) AS prev_close
+                FROM stock_prices s
+            )
+            SELECT
+                date,
+                ticker,
+                CASE
+                    WHEN prev_close IS NULL OR prev_close = 0 THEN NULL
+                    ELSE (close - prev_close) / prev_close
+                END AS pct_change
+            FROM price_lags
+            WHERE date >= date('now', ?)
+            ORDER BY date ASC, ticker ASC
+            """,
+            conn,
+            params=[f"-{int(days)} day"],
+        )
+
+    if returns_df.empty:
+        return {"breadth_ratio": [], "cross_sectional_volatility": [], "average_move": []}
+
+    returns_df["pct_change"] = pd.to_numeric(returns_df["pct_change"], errors="coerce")
+    valid = returns_df.dropna(subset=["pct_change"]).copy()
+    if valid.empty:
+        return {"breadth_ratio": [], "cross_sectional_volatility": [], "average_move": []}
+
+    grouped = valid.groupby("date")["pct_change"]
+    history = pd.DataFrame(
+        {
+            "breadth_ratio": grouped.apply(lambda series: float((series > 0).mean())),
+            "cross_sectional_volatility": grouped.apply(lambda series: float(series.std(ddof=0))),
+            "average_move": grouped.mean().astype(float),
+        }
+    ).sort_index()
+
+    return {
+        "breadth_ratio": history["breadth_ratio"].tolist(),
+        "cross_sectional_volatility": history["cross_sectional_volatility"].tolist(),
+        "average_move": history["average_move"].tolist(),
+    }
+
+
+def _fetch_sentiment_metric_history(dal: DataAccessLayer, days: int = 90) -> Dict[str, List[float]]:
+    """Fetch global daily sentiment history for sparkline cards."""
+    with dal.get_connection() as conn:
+        sentiment_df = pd.read_sql_query(
+            """
+            SELECT
+                date,
+                AVG(confidence) AS avg_confidence,
+                AVG(avg_positive - avg_negative) AS avg_net_score,
+                CASE
+                    WHEN SUM(COALESCE(news_count, 0)) > 0 THEN
+                        SUM((avg_positive - avg_negative) * COALESCE(news_count, 0))
+                        / SUM(COALESCE(news_count, 0))
+                    ELSE AVG(avg_positive - avg_negative)
+                END AS weighted_net_score
+            FROM daily_sentiment
+            WHERE date >= date('now', ?)
+            GROUP BY date
+            ORDER BY date ASC
+            """,
+            conn,
+            params=[f"-{int(days)} day"],
+        )
+
+    if sentiment_df.empty:
+        return {"weighted_net_score": [], "avg_confidence": []}
+
+    sentiment_df["weighted_net_score"] = pd.to_numeric(sentiment_df["weighted_net_score"], errors="coerce")
+    sentiment_df["avg_confidence"] = pd.to_numeric(sentiment_df["avg_confidence"], errors="coerce")
+    sentiment_df = sentiment_df.dropna(subset=["weighted_net_score", "avg_confidence"], how="all")
+
+    return {
+        "weighted_net_score": sentiment_df["weighted_net_score"].dropna().tolist(),
+        "avg_confidence": sentiment_df["avg_confidence"].dropna().tolist(),
+    }
+
+
+def _fetch_ticker_close_history(dal: DataAccessLayer, ticker: str, points: int = 30) -> List[float]:
+    """Fetch recent close prices for a ticker to render a sparkline."""
+    if not ticker:
+        return []
+    with dal.get_connection() as conn:
+        price_df = pd.read_sql_query(
+            """
+            SELECT date, close
+            FROM stock_prices
+            WHERE ticker = ?
+            ORDER BY date DESC
+            LIMIT ?
+            """,
+            conn,
+            params=[ticker, int(points)],
+        )
+
+    if price_df.empty:
+        return []
+    price_df["close"] = pd.to_numeric(price_df["close"], errors="coerce")
+    price_df = price_df.dropna(subset=["close"]).sort_values("date")
+    return price_df["close"].tolist()
+
+
+def _fetch_dashboard_sparklines(
+    dal: DataAccessLayer,
+    top_gainer_ticker: str,
+    top_loser_ticker: str,
+) -> Dict[str, List[float]]:
+    """Collect all sparkline series required by dashboard KPI cards."""
+    market_history = _fetch_market_metric_history(dal=dal, days=90)
+    sentiment_history = _fetch_sentiment_metric_history(dal=dal, days=90)
+    return {
+        "breadth_ratio": market_history.get("breadth_ratio", []),
+        "cross_sectional_volatility": market_history.get("cross_sectional_volatility", []),
+        "weighted_net_score": sentiment_history.get("weighted_net_score", []),
+        "avg_confidence": sentiment_history.get("avg_confidence", []),
+        "top_gainer_close": _fetch_ticker_close_history(dal=dal, ticker=top_gainer_ticker, points=30),
+        "top_loser_close": _fetch_ticker_close_history(dal=dal, ticker=top_loser_ticker, points=30),
+    }
+
+
+def _build_movers_dataframe(rows: List[Dict]) -> pd.DataFrame:
+    """Convert mover records into aligned table dataframe."""
+    if not rows:
+        return pd.DataFrame(columns=["Ticker", "Close", "Change %"])
+    df = pd.DataFrame(rows).copy()
+    df["Ticker"] = df.get("ticker", "").astype(str)
+    df["Close"] = pd.to_numeric(df.get("close"), errors="coerce")
+    df["Change %"] = pd.to_numeric(df.get("pct_change"), errors="coerce") * 100.0
+    df = df[["Ticker", "Close", "Change %"]]
+    return df
+
+
+def _render_movers_table(title: str, rows: List[Dict], bar_color: str, max_abs_change: float):
+    """Render movers table with horizontal bars and aligned numeric fields."""
+    st.subheader(title)
+    movers_df = _build_movers_dataframe(rows)
+    if movers_df.empty:
+        st.info("No data available for this session.")
+        return
+
+    scale = max(max_abs_change, 0.01)
+    styled = (
+        movers_df.style.format({"Close": "${:,.2f}", "Change %": "{:+.2f}%"})
+        .bar(
+            subset=["Change %"],
+            color=bar_color,
+            align="zero",
+            vmin=-scale,
+            vmax=scale,
+        )
+        .set_properties(subset=["Ticker"], **{"text-align": "left"})
+        .set_properties(subset=["Close", "Change %"], **{"text-align": "right"})
+    )
+    st.dataframe(styled, use_container_width=True, hide_index=True)
+
+
+def _headline_sentiment_class(sentiment_label: str) -> str:
+    """Map headline sentiment label into CSS badge class."""
+    normalized = (sentiment_label or "").strip().lower()
+    if normalized.startswith("pos"):
+        return "positive"
+    if normalized.startswith("neg"):
+        return "negative"
+    return "neutral"
 
 
 def _render_lstm_tab(ticker: str, dal: DataAccessLayer, chart_generator: ChartGenerator):
@@ -600,6 +942,7 @@ def show_chat_interface():
 def show_dashboard():
     st.header("Market Dashboard")
     st.write("Overview of S&P 500 and your tracked assets.")
+    _render_dashboard_styles()
 
     dal = st.session_state.get("dal")
     if dal is None:
@@ -609,6 +952,7 @@ def show_dashboard():
     market_snapshot = _empty_market_snapshot()
     sentiment_snapshot = _empty_sentiment_snapshot()
     recent_headlines: List[Dict] = []
+    sparkline_series: Dict[str, List[float]] = {}
 
     with st.status("Loading market data...", expanded=True) as status:
         st.write("Loading latest S&P 500 breadth snapshot from stock prices...")
@@ -629,27 +973,76 @@ def show_dashboard():
         except Exception as exc:
             st.warning(f"Scored headlines feed unavailable: {exc}")
 
+        st.write("Loading sparkline context for KPI cards...")
+        try:
+            top_gainer_ticker = str(((market_snapshot.get("top_gainers") or [{}])[0]).get("ticker", "") or "")
+            top_loser_ticker = str(((market_snapshot.get("top_losers") or [{}])[0]).get("ticker", "") or "")
+            sparkline_series = _fetch_dashboard_sparklines(
+                dal=dal,
+                top_gainer_ticker=top_gainer_ticker,
+                top_loser_ticker=top_loser_ticker,
+            )
+        except Exception as exc:
+            st.warning(f"KPI sparkline history unavailable: {exc}")
+
         status.update(label="Market Data Loaded", state="complete", expanded=False)
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric(
-        "S&P 500 Breadth",
-        _format_ratio(market_snapshot.get("breadth_ratio")),
-        f"{market_snapshot.get('advancers', 0)} up / {market_snapshot.get('decliners', 0)} down",
-        help="Share of S&P 500 tickers that closed higher on the latest market date in your database.",
-    )
-    col2.metric(
-        "Market Volatility",
-        _format_ratio(market_snapshot.get("cross_sectional_volatility")),
-        _format_signed_percent(market_snapshot.get("average_move")),
-        help="Cross-sectional volatility of latest daily returns across tracked S&P 500 tickers.",
-    )
-    col3.metric(
-        "Sentiment Score",
-        _format_decimal(sentiment_snapshot.get("weighted_net_score"), digits=3),
-        sentiment_snapshot.get("label", "N/A"),
-        help="Latest weighted net sentiment from daily FinBERT aggregates (avg_positive - avg_negative).",
-    )
+    top_gainer = (market_snapshot.get("top_gainers") or [{}])[0]
+    top_loser = (market_snapshot.get("top_losers") or [{}])[0]
+
+    row1_col1, row1_col2, row1_col3 = st.columns(3)
+    with row1_col1:
+        _render_kpi_card(
+            label="S&P 500 Breadth",
+            value_text=_format_ratio(market_snapshot.get("breadth_ratio")),
+            sub_text=f"{market_snapshot.get('advancers', 0)} up / {market_snapshot.get('decliners', 0)} down",
+            sparkline_values=sparkline_series.get("breadth_ratio", []),
+            spark_color="#22c55e",
+        )
+    with row1_col2:
+        _render_kpi_card(
+            label="Market Volatility",
+            value_text=_format_ratio(market_snapshot.get("cross_sectional_volatility")),
+            sub_text=f"Avg move {_format_signed_percent(market_snapshot.get('average_move'))}",
+            sparkline_values=sparkline_series.get("cross_sectional_volatility", []),
+            spark_color="#38bdf8",
+        )
+    with row1_col3:
+        _render_kpi_card(
+            label="Sentiment Score",
+            value_text=_format_decimal(sentiment_snapshot.get("weighted_net_score"), digits=3),
+            sub_text=str(sentiment_snapshot.get("label", "N/A")),
+            sparkline_values=sparkline_series.get("weighted_net_score", []),
+            spark_color="#f59e0b",
+        )
+
+    row2_col1, row2_col2, row2_col3 = st.columns(3)
+    with row2_col1:
+        _render_kpi_card(
+            label="Top Gainer",
+            value_text=str(top_gainer.get("ticker", "N/A")),
+            sub_text=f"{_format_signed_percent(top_gainer.get('pct_change'))} | {_format_currency(top_gainer.get('close'))}",
+            sparkline_values=sparkline_series.get("top_gainer_close", []),
+            spark_color="#22c55e",
+            tint="gain",
+        )
+    with row2_col2:
+        _render_kpi_card(
+            label="Top Loser",
+            value_text=str(top_loser.get("ticker", "N/A")),
+            sub_text=f"{_format_signed_percent(top_loser.get('pct_change'))} | {_format_currency(top_loser.get('close'))}",
+            sparkline_values=sparkline_series.get("top_loser_close", []),
+            spark_color="#ef4444",
+            tint="loss",
+        )
+    with row2_col3:
+        _render_kpi_card(
+            label="Sentiment Confidence",
+            value_text=_format_ratio(sentiment_snapshot.get("avg_confidence")),
+            sub_text=f"{sentiment_snapshot.get('news_count', 0)} headlines",
+            sparkline_values=sparkline_series.get("avg_confidence", []),
+            spark_color="#a78bfa",
+        )
 
     st.caption(
         f"Latest stock date: `{market_snapshot.get('latest_date') or 'N/A'}` | "
@@ -659,49 +1052,28 @@ def show_dashboard():
         f"Headlines in sentiment snapshot: `{sentiment_snapshot.get('news_count', 0)}`"
     )
 
-    movers_col1, movers_col2, movers_col3 = st.columns(3)
-    top_gainer = (market_snapshot.get("top_gainers") or [{}])[0]
-    top_loser = (market_snapshot.get("top_losers") or [{}])[0]
-    movers_col1.metric(
-        "Top Gainer",
-        str(top_gainer.get("ticker", "N/A")),
-        _format_signed_percent(top_gainer.get("pct_change")),
-    )
-    movers_col2.metric(
-        "Top Loser",
-        str(top_loser.get("ticker", "N/A")),
-        _format_signed_percent(top_loser.get("pct_change")),
-    )
-    movers_col3.metric(
-        "Sentiment Confidence",
-        _format_ratio(sentiment_snapshot.get("avg_confidence")),
-        f"{sentiment_snapshot.get('news_count', 0)} headlines",
-    )
-
     st.subheader("Top Movers")
     top_gainers = market_snapshot.get("top_gainers") or []
     top_losers = market_snapshot.get("top_losers") or []
-    if top_gainers:
-        st.write("Top Gainers (latest session):")
-        for idx, row in enumerate(top_gainers, start=1):
-            st.write(
-                f"{idx}. {row.get('ticker', 'N/A')} | "
-                f"{_format_signed_percent(row.get('pct_change'))} | "
-                f"{_format_currency(row.get('close'))}"
-            )
-    else:
-        st.write("Top Gainers (latest session): N/A")
-
-    if top_losers:
-        st.write("Top Losers (latest session):")
-        for idx, row in enumerate(top_losers, start=1):
-            st.write(
-                f"{idx}. {row.get('ticker', 'N/A')} | "
-                f"{_format_signed_percent(row.get('pct_change'))} | "
-                f"{_format_currency(row.get('close'))}"
-            )
-    else:
-        st.write("Top Losers (latest session): N/A")
+    all_rows = top_gainers + top_losers
+    max_abs_change = 0.0
+    if all_rows:
+        max_abs_change = max(abs(float(row.get("pct_change") or 0.0) * 100.0) for row in all_rows)
+    gainers_col, losers_col = st.columns(2)
+    with gainers_col:
+        _render_movers_table(
+            title="Top Gainers",
+            rows=top_gainers,
+            bar_color="#22c55e",
+            max_abs_change=max_abs_change,
+        )
+    with losers_col:
+        _render_movers_table(
+            title="Top Losers",
+            rows=top_losers,
+            bar_color="#ef4444",
+            max_abs_change=max_abs_change,
+        )
 
     st.subheader("Latest Scored Headlines")
     if not recent_headlines:
@@ -715,7 +1087,18 @@ def show_dashboard():
         headline = str(row.get("headline") or "").strip()
         if not headline:
             continue
-        st.write(f"[{ticker}] {label} ({confidence}) | {headline}")
+        label_class = _headline_sentiment_class(label)
+        st.markdown(
+            (
+                '<div class="headline-row">'
+                f'<span class="headline-pill ticker">{html.escape(ticker)}</span>'
+                f'<span class="headline-pill {label_class}">{html.escape(label.title())}</span>'
+                f'<span class="headline-pill confidence">{html.escape(confidence)}</span>'
+                f'<span class="headline-text">{html.escape(headline)}</span>'
+                "</div>"
+            ),
+            unsafe_allow_html=True,
+        )
 
 
 def show_disclaimer():

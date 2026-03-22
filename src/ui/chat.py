@@ -1,8 +1,10 @@
 import streamlit as st
 import re
 import logging
+import os
+import sys
 from typing import List, Dict, Optional, Any
-from src.llm.llama_loader import LlamaLoader
+from src.llm.llama_loader import LlamaLoader, DEFAULT_MODEL_PATH
 from src.llm.prompts import PromptManager
 from src.llm.context_builder import ContextBuilder
 from src.database.dal import DataAccessLayer
@@ -18,14 +20,21 @@ class ChatManager:
         self.dal = dal
         self.prompt_manager = PromptManager()
         self.context_builder = ContextBuilder(dal)
-        
-        # Initialize LlamaLoader (lazy loading or in session state)
-        if "llama_model" not in st.session_state:
+
+        # Initialize or refresh LlamaLoader in session state.
+        # Refresh happens when an existing mock loader is detected but a real model now exists.
+        target_model_path = model_path or DEFAULT_MODEL_PATH
+        should_initialize_model = "llama_model" not in st.session_state
+
+        if not should_initialize_model:
+            existing_model = st.session_state.llama_model
+            existing_mock_mode = getattr(existing_model, "mock_mode", None)
+            if isinstance(existing_mock_mode, bool) and existing_mock_mode and os.path.exists(target_model_path):
+                should_initialize_model = True
+
+        if should_initialize_model:
             with st.spinner("Initializing AI Engine..."):
-                if model_path:
-                    st.session_state.llama_model = LlamaLoader(model_path=model_path)
-                else:
-                    st.session_state.llama_model = LlamaLoader()
+                st.session_state.llama_model = LlamaLoader(model_path=target_model_path)
         
         self.llm = st.session_state.llama_model
 
@@ -46,6 +55,14 @@ class ChatManager:
         """
         Renders the chat interface.
         """
+        active_mock_mode = getattr(self.llm, "mock_mode", None)
+        if isinstance(active_mock_mode, bool) and active_mock_mode:
+            st.warning(
+                "AI engine is running in mock mode. Restart using "
+                "`venv\\Scripts\\python.exe -m streamlit run app.py`. "
+                f"Current Python: `{sys.executable}`"
+            )
+
         col1, col2 = st.columns([0.8, 0.2])
         with col1:
             st.subheader("AI Financial Advisor", help="Ask questions about stocks, market trends, or technical indicators.")
