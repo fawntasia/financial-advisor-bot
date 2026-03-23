@@ -1,174 +1,205 @@
-# Financial Advisor Bot
+﻿# Financial Advisor Bot
 
-A robust, AI-powered financial advisory system focusing on the S&P 500 market. This project integrates historical market data, technical analysis, and sentiment analysis from financial news to provide data-driven investment insights.
+Local, end-to-end S&P 500 analytics app with:
+- SQLite-backed market/news data pipeline
+- technical indicator generation
+- FinBERT sentiment scoring
+- Random Forest, XGBoost, and LSTM training/evaluation
+- Streamlit dashboard + local LLM chat (with mock fallback)
 
-## Features
+## What Is In This Repo
 
-- **Data Pipeline**: Automated ingestion of S&P 500 OHLCV data and financial news.
-- **Technical Analysis**: Calculation of key indicators (RSI, MACD, Bollinger Bands, etc.).
-- **Sentiment Analysis**: FinBERT-based sentiment scoring of financial news headlines.
-- **Machine Learning**: LSTM and Ensemble models for trend prediction.
-- **Interactive UI**: Streamlit-based dashboard for visualization and LLM-powered chat.
+Key paths in the current project:
 
-## Project Structure
-
-```
-├── data/               # Data storage (SQLite DB, cache)
-├── docs/               # Documentation
-├── scripts/            # Utility scripts (init db, ingest data)
+```text
+.
+├── app.py
+├── config/
+│   └── production_model.json
+├── data/
+│   ├── financial_advisor.db              # local SQLite DB (gitignored)
+│   ├── download_checkpoint.json
+│   └── cache/, logs/, archive/
+├── models/
+│   ├── random_forest_global.pkl
+│   ├── random_forest_global_metadata.json
+│   ├── xgboost_global.json
+│   ├── xgboost_global_metadata.json
+│   └── lstm_*.keras / *_metadata.json / *_scalers.joblib
+├── results/
+│   ├── training_runs/
+│   └── fresh_eval_20260323/
+├── scripts/
 ├── src/
-│   ├── data/           # Data fetching and processing
-│   ├── database/       # Database Access Layer (DAL)
-│   ├── features/       # Feature engineering
-│   ├── models/         # ML model definitions
-│   ├── nlp/            # Sentiment analysis & text processing
-│   ├── ui/             # Streamlit application
-│   └── utils/          # Utilities (logging, config)
-├── tests/              # Unit and integration tests
-├── app.py              # Main application entry point
-├── requirements.txt    # Project dependencies
-└── README.md           # This file
+└── tests/
 ```
 
-## Quick Start
+Notes:
+- The old `docs/` folder referenced in earlier README versions is not present in this project.
+- FinBERT and GGUF LLM weights are not committed (`models/finbert/`, `models/llama3/` are gitignored).
+
+## Requirements
+
+- Python 3.10+ (3.10.11 validated in this workspace)
+- `pip`
+- Git (optional)
+
+## Setup
+
+From repository root:
 
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python scripts/init_db.py
-streamlit run app.py
 ```
 
-Note: For full sentiment and chat responses, download local model files to `models/finbert/` (FinBERT) and `models/llama3/` (Llama 3 GGUF).
+Activate environment:
 
-## Documentation
+- Windows PowerShell: `.\venv\Scripts\Activate.ps1`
+- Windows CMD: `venv\Scripts\activate.bat`
+- macOS/Linux: `source venv/bin/activate`
 
-- User guide: `docs/user_guide.md`
-- Technical documentation: `docs/technical_documentation.md`
-
-## Setup Instructions
-
-### Prerequisites
-
-- Python 3.9+
-- Git
-
-### Installation
-
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/fawntasia/financial-advisor-bot.git
-    cd financial-advisor-bot
-    ```
-
-2.  **Create a virtual environment:**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
-    ```
-
-3.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4.  **Initialize the database:**
-    ```bash
-    python scripts/init_db.py
-    ```
-
-## Usage
-
-### Running the Application
-
-To start the Streamlit dashboard:
+Install dependencies and initialize DB:
 
 ```bash
-streamlit run app.py
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python scripts/init_db.py
 ```
 
-### Data Ingestion
+## Quick Run
 
-To fetch the latest S&P 500 tickers from Wikipedia:
+Launch the app:
+
+```bash
+python -m streamlit run app.py
+```
+
+If the local LLM file is missing, chat runs in mock mode (the app still works).
+
+## End-to-End Workflow
+
+### 1) Sync ticker universe (strict S&P 500 sync)
 
 ```bash
 python scripts/update_tickers.py
 ```
 
-`update_tickers.py` now performs a strict sync: it keeps only current S&P 500 constituents in the `tickers` table (stale symbols are removed).
+Use `--keep-stale` if you do not want removed constituents deleted from DB.
 
-To fetch the latest stock data and news (incremental update; new symbols are backfilled with a bounded 5-year history):
+### 2) Ingest prices + news + automatic sentiment
 
 ```bash
-python scripts/ingest_data.py
+python scripts/ingest_data.py --news-provider auto
 ```
 
-News ingestion defaults are now free-first:
-- `--news-provider auto` (default): tries Yahoo Finance RSS first (no key required), then falls back to NewsAPI / Alpha Vantage when keys are available.
-- Fixed scope: each run ingests all tracked tickers.
-- Fixed storage window: news is fetched with a 10-day lookback and old news/sentiment rows are pruned beyond 10 days.
-- Automatic sentiment: FinBERT scoring runs automatically right after news ingestion (when local sentiment dependencies/model are available).
+Current ingestion behavior:
+- prices are incremental per ticker (new symbols backfill ~5 years)
+- indicators are recomputed for updated tickers
+- news defaults to 10-day lookback, 4 articles/ticker
+- old news/sentiment is pruned to 10-day retention
+- sentiment scoring runs automatically when FinBERT is available
 
-Examples:
-
-```bash
-# Ingest prices + news using defaults (auto provider, all tickers, 10-day news window)
-python scripts/ingest_data.py
-
-# Force RSS-only mode
-python scripts/ingest_data.py --news-provider rss
-```
-
-For targeted manual fetches (specific symbols or full list):
+### 3) Optional targeted ingestion utilities
 
 ```bash
-# Fetch for specific symbols
 python scripts/fetch_news.py --tickers AAPL MSFT --provider auto --days 7
-
-# Fetch for all DB tickers using RSS-only mode
 python scripts/fetch_news.py --all --provider rss --days 3
-```
-
-To (re)download a 5-year OHLCV window for all current S&P 500 symbols:
-
-```bash
+python scripts/run_sentiment_analysis.py --all-unprocessed --model-path models/finbert
+python scripts/calculate_indicators.py --ticker AAPL
 python scripts/download_historical_data.py
 ```
 
-### Model Training and Evaluation (DB-First)
-
-All model scripts are SQLite-first by default and support optional live data via `--data-source yfinance`.
+### 4) Train models
 
 ```bash
-# Random Forest (global pooled model across all available tickers)
 python scripts/train_random_forest.py --output-dir models --data-source db --db-path data/financial_advisor.db
-
-# XGBoost (global pooled model across all available tickers)
 python scripts/train_xgboost.py --output-dir models --data-source db --db-path data/financial_advisor.db
-
-# LSTM
-python scripts/train_lstm.py --ticker ALL --epochs 10 --batch-size 32 --output-dir models --data-source db --db-path data/financial_advisor.db
-
-# Walk-forward validation
-python scripts/run_walkforward.py --ticker AAPL --model rf --output-dir results --data-source db --db-path data/financial_advisor.db
-
-# Backtest
-python scripts/backtest_models.py --ticker AAPL --model models/random_forest_global.pkl --start-date 2023-01-01 --end-date 2023-12-31 --output-dir results --data-source db --db-path data/financial_advisor.db
+python scripts/train_lstm.py --ticker ALL --epochs 50 --batch-size 32 --output-dir models --data-source db --db-path data/financial_advisor.db
 ```
 
-Detailed model docs:
-- `docs/model_training.md`
-- `docs/technical_documentation.md`
+### 5) Evaluate / backtest
 
-## Safety Disclaimer
+```bash
+python scripts/run_walkforward.py --ticker AAPL --model rf --output-dir results --data-source db --db-path data/financial_advisor.db
+python scripts/backtest_models.py --ticker AAPL --model models/random_forest_global.pkl --start-date 2026-01-01 --end-date 2026-03-20 --output-dir results --data-source db --db-path data/financial_advisor.db
+python scripts/run_universe_backtest.py --model xgb --db-path data/financial_advisor.db --output-dir results
+```
 
-This tool is for educational and research purposes only and is not financial advice. Past performance does not guarantee future results.
+### 6) Compare walk-forward runs and refresh production config
 
-## Development
+```bash
+python scripts/compare_models.py --results_dir results --output_report results/model_selection.md --output_csv results/comparison_summary.csv --production_config config/production_model.json
+```
 
-- **Run Tests**: `pytest`
-- **Linting**: `flake8 src tests`
+`config/production_model.json` is used by runtime production-model resolution in the app.
+
+## Local Model Downloads (Optional but Recommended)
+
+### FinBERT (for sentiment scoring)
+
+```bash
+python scripts/download_finbert.py
+```
+
+Expected path: `models/finbert/`.
+
+### GGUF LLM (for non-mock chat)
+
+```bash
+python scripts/download_llama3.py --path models/llama3/
+```
+
+The chat loader currently looks for:
+
+```text
+models/llama3/Llama-3.2-1B-Instruct-Q4_K_M.gguf
+```
+
+If your downloaded GGUF has a different filename, rename it or update `DEFAULT_MODEL_PATH` in `src/llm/llama_loader.py`.
+
+## Script Reference
+
+Validated CLI entrypoints in `scripts/`:
+
+- `init_db.py`: create schema/indexes, seed fallback ticker universe
+- `update_tickers.py`: sync current S&P 500 constituents from Wikipedia
+- `ingest_data.py`: unified stock + indicators + news + auto-sentiment pipeline
+- `fetch_news.py`: manual ticker-scoped news fetch
+- `run_sentiment_analysis.py`: manual batch sentiment scoring
+- `train_random_forest.py`: global classifier training (`random_forest_global.*`)
+- `train_xgboost.py`: global classifier training (`xgboost_global.*`)
+- `train_lstm.py`: LSTM training (`lstm_*.keras`, metadata, scalers)
+- `run_walkforward.py`: walk-forward metrics JSON (`wf_results_*`)
+- `backtest_models.py`: ticker backtest CSV
+- `run_universe_backtest.py`: full-universe classifier backtest
+- `compare_models.py`: aggregate walk-forward results + production model config
+- `run_baselines.py`: buy-and-hold/random-walk/SMA baselines
+- `scheduler.py`: daily ingest scheduler (`18:00`)
+
+## Testing
+
+Run:
+
+```bash
+python -m pytest
+```
+
+Branch status observed on 2026-03-23:
+- 176 collected tests (1 skipped)
+- 13 failing tests currently in this branch
+
+So treat the suite as non-green until those failures are resolved.
+
+## Troubleshooting
+
+- If `streamlit`/`transformers` import behavior is inconsistent, use the project venv interpreter explicitly:
+  - Windows: `.\venv\Scripts\python.exe ...`
+- If chat shows mock mode, verify GGUF exists at the loader path above.
+- If sentiment is skipped, verify `models/finbert/` exists and `run_sentiment_analysis.py` works.
+
+## Disclaimer
+
+Educational/research project only. Not financial advice.
 
 ## License
 
