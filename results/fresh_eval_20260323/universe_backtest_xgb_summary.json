@@ -1,0 +1,21 @@
+{
+  "model": "xgb",
+  "start_date": "2026-01-01",
+  "end_date": "2026-03-20",
+  "requested_tickers": 503,
+  "processed_tickers": 503,
+  "failed_tickers": 0,
+  "mean_strategy_total_return": -0.013689365661555125,
+  "median_strategy_total_return": -0.007439819795682978,
+  "mean_strategy_sharpe_ratio": 4.922713034465521,
+  "median_strategy_sharpe_ratio": -1.8406320515252397,
+  "mean_strategy_max_drawdown": -0.023379032690253557,
+  "mean_benchmark_total_return": -0.022962768034230564,
+  "median_benchmark_total_return": -0.023572011015587035,
+  "mean_benchmark_sharpe_ratio": 4.867763397756745,
+  "tickers_with_positive_strategy_return": 108,
+  "tickers_with_positive_benchmark_return": 111,
+  "tickers_beating_benchmark_total_return": 208,
+  "mean_num_rows": 5.0,
+  "failed_examples": []
+}

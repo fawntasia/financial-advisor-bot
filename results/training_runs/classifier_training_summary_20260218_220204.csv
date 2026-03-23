@@ -1,0 +1,3 @@
+ticker,rf_status,rf_seconds,rf_error,xgb_status,xgb_seconds,xgb_error
+A,success,0.55,,success,0.28,
+AAPL,success,0.48,,success,0.16,

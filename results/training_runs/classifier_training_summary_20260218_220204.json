@@ -1,0 +1,51 @@
+{
+  "run_started_at": "2026-02-18T22:02:04.101510",
+  "run_finished_at": "2026-02-18T22:02:05.680743",
+  "args": {
+    "models": "both",
+    "ticker": null,
+    "max_tickers": 2,
+    "tune": false,
+    "train_split": 0.8,
+    "val_split": 0.1,
+    "output_dir": "models",
+    "seed": 42,
+    "data_source": "db",
+    "db_path": "data/financial_advisor.db",
+    "start_date": null,
+    "end_date": null,
+    "years": 10,
+    "include_without_prices": false,
+    "gpu": false,
+    "stop_on_error": false,
+    "summary_dir": "results/training_runs",
+    "log_dir": "logs/model_training"
+  },
+  "num_tickers": 2,
+  "num_processed": 2,
+  "rf_success": 2,
+  "rf_failed": 0,
+  "xgb_success": 2,
+  "xgb_failed": 0,
+  "rows": [
+    {
+      "ticker": "A",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.55,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.28
+    },
+    {
+      "ticker": "AAPL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.16
+    }
+  ],
+  "log_path": "logs/model_training\\classifier_training_20260218_220204.log"
+}

@@ -1,0 +1,4551 @@
+{
+  "run_started_at": "2026-02-18T22:02:17.006379",
+  "run_finished_at": "2026-02-18T22:07:37.541306",
+  "args": {
+    "models": "both",
+    "ticker": null,
+    "max_tickers": null,
+    "tune": false,
+    "train_split": 0.8,
+    "val_split": 0.1,
+    "output_dir": "models",
+    "seed": 42,
+    "data_source": "db",
+    "db_path": "data/financial_advisor.db",
+    "start_date": null,
+    "end_date": null,
+    "years": 10,
+    "include_without_prices": false,
+    "gpu": false,
+    "stop_on_error": false,
+    "summary_dir": "results/training_runs",
+    "log_dir": "logs/model_training"
+  },
+  "num_tickers": 502,
+  "num_processed": 502,
+  "rf_success": 501,
+  "rf_failed": 1,
+  "xgb_success": 501,
+  "xgb_failed": 1,
+  "rows": [
+    {
+      "ticker": "A",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.24
+    },
+    {
+      "ticker": "AAPL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ABBV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "ABNB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ABT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ACGL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ACN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "ADBE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "ADI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ADM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ADP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ADSK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "AEE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "AEP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "AES",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "AFL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "AIG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.49,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "AIZ",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "AJG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.53,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.17
+    },
+    {
+      "ticker": "AKAM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.51,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.16
+    },
+    {
+      "ticker": "ALB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "ALGN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "ALL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "ALLE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "AMAT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "AMCR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "AMD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.17
+    },
+    {
+      "ticker": "AME",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "AMGN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "AMP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "AMT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "AMZN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "ANET",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.17
+    },
+    {
+      "ticker": "AON",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.49,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.2
+    },
+    {
+      "ticker": "AOS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.16
+    },
+    {
+      "ticker": "APA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.5,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "APD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "APH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "APO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "APP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.42,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "APTV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "ARE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ARES",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "ATO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "AVB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "AVGO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "AVY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "AWK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "AXON",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "AXP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "AZO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "BA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.18
+    },
+    {
+      "ticker": "BAC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "BALL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "BAX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "BBY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "BDX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "BEN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "BF.B",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.42,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "BG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "BIIB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.11
+    },
+    {
+      "ticker": "BK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "BKNG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "BKR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "BLDR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "BLK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.5,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "BMY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "BR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "BRK.B",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "BRO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "BSX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "BX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.16
+    },
+    {
+      "ticker": "BXP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "C",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CAG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CAH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CARR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CAT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CBOE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CBRE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CCI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CCL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CDNS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CDW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CEG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.42,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CF",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CFG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CHD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "CHRW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CHTR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.16
+    },
+    {
+      "ticker": "CI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.49,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "CINF",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "CL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CLX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CMCSA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CME",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CMG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CMI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CMS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "CNC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CNP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "COF",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "COIN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "COO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "COP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "COR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "COST",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.49,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "CPAY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CPB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "CPRT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CPT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CRH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "CRL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CRM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CRWD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CSCO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CSGP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CSX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "CTAS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CTRA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CTSH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CTVA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CVNA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "CVS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "CVX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "D",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "DAL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DASH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DDOG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "DE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "DECK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DELL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DGX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DHI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DHR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "DIS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DLR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DLTR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DOC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "DOV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "DOW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DPZ",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "DRI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DTE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DUK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "DVA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DVN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "DXCM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "EA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "EBAY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ECL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "ED",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.17
+    },
+    {
+      "ticker": "EFX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "EG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "EIX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "EL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "ELV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "EME",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "EMR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "EOG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "EPAM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "EQIX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "EQR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "EQT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ERIE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ES",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "ESS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "ETN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ETR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "EVRG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "EW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "EXC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "EXE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "EXPD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "EXPE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "EXR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "F",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "FANG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "FAST",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "FCX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "FDS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "FDX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "FE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "FFIV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "FICO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "FIS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.18
+    },
+    {
+      "ticker": "FISV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "FITB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "FIX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "FOX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "FOXA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "FRT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "FSLR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "FTNT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "FTV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "GD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.51,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "GDDY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "GE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "GEHC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.37,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "GEN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "GEV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.31,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "GILD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "GIS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "GL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "GLW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "GM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "GNRC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "GOOG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "GOOGL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "GPC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "GPN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.16
+    },
+    {
+      "ticker": "GRMN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "GS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "GWW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "HAL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "HAS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "HBAN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "HCA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "HD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "HIG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "HII",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "HLT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "HOLX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "HON",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "HOOD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "HPE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "HPQ",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "HRL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "HSIC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.5,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "HST",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "HSY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "HUBB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "HUM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "HWM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "IBKR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "IBM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ICE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.49,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "IDXX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "IEX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "IFF",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "INCY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "INTC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "INTU",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "INVH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "IP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "IQV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "IR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "IRM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "ISRG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "IT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "ITW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "IVZ",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "J",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "JBHT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "JBL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "JCI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "JKHY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "JNJ",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "JPM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "KDP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "KEY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "KEYS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "KHC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "KIM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "KKR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "KLAC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "KMB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "KMI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "KO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "KR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "KVUE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.35,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "L",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "LDOS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "LEN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "LH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "LHX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "LII",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "LIN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "LLY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "LMT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "LNT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "LOW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "LRCX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.49,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "LULU",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "LUV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "LVS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "LW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "LYB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "LYV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "MAA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MAR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MAS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "MCD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MCHP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MCK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "MCO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MDLZ",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "MDT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "MET",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "META",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MGM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MKC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MLM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MMM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MNST",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "MO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "MOH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "MOS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.16
+    },
+    {
+      "ticker": "MPC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.18
+    },
+    {
+      "ticker": "MPWR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MRK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "MRNA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.5,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "MRSH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "MSCI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "MSFT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "MSI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "MTB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "MTCH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.16
+    },
+    {
+      "ticker": "MTD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "MU",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "NCLH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "NDAQ",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "NDSN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "NEE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "NEM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "NFLX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "NI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "NKE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.5,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "NOC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "NOW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "NRG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "NSC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "NTAP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "NTRS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "NUE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "NVDA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "NVR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "NWS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "NWSA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "NXPI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "O",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ODFL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "OKE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "OMC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "ON",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "ORCL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "ORLY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "OTIS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "OXY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "PANW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "PAYC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "PAYX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "PCAR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "PCG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "PEG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "PEP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "PFE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "PFG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "PG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "PGR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "PH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "PHM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "PKG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "PLD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "PLTR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "PM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "PNC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "PNR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "PNW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "PODD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "POOL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "PPG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "PPL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "PRU",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "PSA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "PSKY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.17
+    },
+    {
+      "ticker": "PSX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "PTC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "PWR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "PYPL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "Q",
+      "rf_status": "failed",
+      "rf_error": "ValueError: Not enough rows after indicator warm-up to train model.",
+      "rf_seconds": 0.02,
+      "xgb_status": "failed",
+      "xgb_error": "ValueError: Not enough rows after indicator warm-up to train model.",
+      "xgb_seconds": 0.02
+    },
+    {
+      "ticker": "QCOM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "RCL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "REG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "REGN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.49,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "RF",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "RJF",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "RL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "RMD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ROK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ROL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ROP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "ROST",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "RSG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "RTX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "RVTY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "SBAC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "SBUX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "SCHW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "SHW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "SJM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "SLB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "SMCI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "SNA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "SNDK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.27,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "SNPS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "SO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "SOLV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.31,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "SPG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "SPGI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.16
+    },
+    {
+      "ticker": "SRE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "STE",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "STLD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "STT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "STX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "STZ",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "SW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "SWK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "SWKS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.5,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "SYF",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "SYK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "SYY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "T",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TAP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TDG",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TDY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "TECH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TEL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "TER",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TFC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "TGT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "TJX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "TKO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "TMO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "TMUS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TPL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TPR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "TRGP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.43,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TRMB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "TROW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "TRV",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TSCO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "TSLA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "TSN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "TTD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TTWO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "TXN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TXT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "TYL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "UAL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "UBER",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "UDR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "UHS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "ULTA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "UNH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "UNP",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "UPS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "URI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "USB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "V",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "VICI",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "VLO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "VLTO",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.33,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "VMC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "VRSK",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "VRSN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "VRTX",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "VST",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "VTR",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "VTRS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "VZ",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "WAB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.45,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "WAT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "WBD",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.51,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "WDAY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "WDC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "WEC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "WELL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "WFC",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "WM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.44,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "WMB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.42,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "WMT",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "WRB",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.6,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.16
+    },
+    {
+      "ticker": "WSM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "WST",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.47,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "WTW",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.48,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "WY",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.13
+    },
+    {
+      "ticker": "WYNN",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "XEL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.12
+    },
+    {
+      "ticker": "XOM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "XYL",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.46,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    },
+    {
+      "ticker": "XYZ",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.51,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "YUM",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.49,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.15
+    },
+    {
+      "ticker": "ZBH",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.54,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.23
+    },
+    {
+      "ticker": "ZBRA",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.52,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.17
+    },
+    {
+      "ticker": "ZTS",
+      "rf_status": "success",
+      "rf_error": "",
+      "rf_seconds": 0.49,
+      "xgb_status": "success",
+      "xgb_error": "",
+      "xgb_seconds": 0.14
+    }
+  ],
+  "log_path": "logs/model_training\\classifier_training_20260218_220217.log"
+}

@@ -1,0 +1,13 @@
+{
+    "production_model": {
+        "ticker": "AAPL",
+        "model_type": "rf",
+        "selection_metric": "avg_sharpe",
+        "performance": {
+            "avg_accuracy": 0.47349864489688004,
+            "avg_sharpe": 0.5558911104774916,
+            "avg_max_drawdown": -0.030304648263750848
+        },
+        "updated_at": "2026-03-23T19:08:41.553794"
+    }
+}

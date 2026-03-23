@@ -22,9 +22,11 @@ wheels/
 
 # Virtual Environment
 venv/
+.venv/
+
 env/
 ENV/
-.venv/
+
 
 # Environment Variables
 .env
@@ -38,28 +40,26 @@ ENV/
 *.swo
 *~
 
-# Database
+
+# Database / local data store
 data/financial_advisor.db
 *.db
 *.sqlite
 *.sqlite3
 
 # Model Files (large binaries)
-models/*.pth
-models/*.h5
-models/*.pkl
-models/*.json
-models/*.keras
-models/*_scalers.joblib
 models/finbert/
 models/llama3/
 *.bin
 *.gguf
+*.safetensors
 
 # Data Files
 data/raw/*
 data/processed/*
 data/archive/*
+data/cache/
+data/logs/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/archive/.gitkeep
@@ -67,6 +67,7 @@ data/archive/*
 # Logs
 *.log
 logs/
+
 
 # Cache
 cache/
@@ -92,7 +93,6 @@ temp/
 
 # Local agent/work artifacts
 .sisyphus/
-results/
 data/download_checkpoint.json
 todo.md
 agents.md

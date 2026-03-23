@@ -1,0 +1,21 @@
+{
+  "model": "rf",
+  "start_date": "2026-01-01",
+  "end_date": "2026-03-20",
+  "requested_tickers": 503,
+  "processed_tickers": 503,
+  "failed_tickers": 0,
+  "mean_strategy_total_return": -0.015001858685664523,
+  "median_strategy_total_return": -0.010283282113842884,
+  "mean_strategy_sharpe_ratio": 0.6625402978300674,
+  "median_strategy_sharpe_ratio": -2.2452139539708207,
+  "mean_strategy_max_drawdown": -0.025162207862967446,
+  "mean_benchmark_total_return": -0.022962768034230564,
+  "median_benchmark_total_return": -0.023572011015587035,
+  "mean_benchmark_sharpe_ratio": 4.867763397756745,
+  "tickers_with_positive_strategy_return": 108,
+  "tickers_with_positive_benchmark_return": 111,
+  "tickers_beating_benchmark_total_return": 188,
+  "mean_num_rows": 5.0,
+  "failed_examples": []
+}

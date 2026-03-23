@@ -1,0 +1,88 @@
+{
+  "trained_at": "2026-03-22T23:28:49.938827",
+  "model_path": "C:\\Users\\Charlotte\\Documents\\school\\FINAL PROJECT AGENTS ONLY\\models\\lstm_all_20260322_225801.keras",
+  "scaler_path": "C:\\Users\\Charlotte\\Documents\\school\\FINAL PROJECT AGENTS ONLY\\models\\lstm_all_20260322_225801_scalers.joblib",
+  "mode": "all_tickers",
+  "requested_tickers": 503,
+  "used_tickers": 501,
+  "skipped_tickers": [
+    "Q",
+    "SNDK"
+  ],
+  "sequence_length": 60,
+  "feature_columns": [
+    "Close",
+    "SMA_20",
+    "SMA_50",
+    "RSI",
+    "MACD",
+    "Signal_Line"
+  ],
+  "train_shape": [
+    196012,
+    60,
+    6
+  ],
+  "validation_shape": [
+    125249,
+    60,
+    6
+  ],
+  "test_shape": [
+    27054,
+    60,
+    6
+  ],
+  "validation_split_basis": "hard_coded_calendar_dates",
+  "hard_coded_split": {
+    "train_start": "2023-01-01",
+    "train_end": "2024-12-31",
+    "validation_start": "2025-01-01",
+    "validation_end": "2025-12-31",
+    "test_start": "2026-01-01",
+    "test_end": null
+  },
+  "train_date_range": {
+    "start": "2023-06-02",
+    "end": "2024-12-31"
+  },
+  "validation_date_range": {
+    "start": "2025-01-02",
+    "end": "2025-12-31"
+  },
+  "train_ticker_count": 501,
+  "validation_ticker_count": 501,
+  "seed": 42,
+  "tensorflow_runtime": {
+    "cpu_count": 16,
+    "use_gpu_requested": true,
+    "mixed_precision_requested": true,
+    "cpu_threads_configured": true,
+    "gpu_count": 0,
+    "gpu_enabled": false,
+    "mixed_precision_policy": "float32",
+    "xla_jit": true
+  },
+  "global_test_mse_scaled": 0.10049087554216385,
+  "avg_per_ticker_rmse_price": 11.882351070850671,
+  "train_metrics": {
+    "train": {
+      "loss": 0.0010873356368392706
+    },
+    "validation": {
+      "loss": 0.020418750122189522
+    },
+    "test": {
+      "loss": 0.10049087554216385
+    },
+    "metadata": {
+      "model_name": "LSTM_Keras_v1",
+      "epochs_requested": 50,
+      "epochs_ran": 6,
+      "patience": 5,
+      "train_rows": 196012,
+      "validation_rows": 125249,
+      "test_rows": 27054
+    }
+  }
+}

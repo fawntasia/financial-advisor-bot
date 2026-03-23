@@ -1,0 +1,23 @@
+{
+  "model": "rf",
+  "model_path": "models/random_forest_global.pkl",
+  "load_start": "2025-09-01",
+  "eval_start": "2026-01-01",
+  "end_date": "2026-03-20",
+  "requested_tickers": 503,
+  "processed_tickers": 503,
+  "failed_tickers": 0,
+  "mean_strategy_total_return": -0.014882389946036193,
+  "median_strategy_total_return": -0.01749710991504283,
+  "mean_strategy_sharpe_ratio": 0.2938213319419342,
+  "median_strategy_sharpe_ratio": -0.3669143777629951,
+  "mean_strategy_max_drawdown": -0.13103355265521618,
+  "mean_benchmark_total_return": -0.008731443426613434,
+  "median_benchmark_total_return": -0.037373069965311645,
+  "mean_benchmark_sharpe_ratio": 0.9803963962792775,
+  "tickers_with_positive_strategy_return": 209,
+  "tickers_with_positive_benchmark_return": 204,
+  "tickers_beating_benchmark_total_return": 237,
+  "mean_num_rows": 53.99403578528827,
+  "failed_examples": []
+}

@@ -1,0 +1,22 @@
+{
+  "model": "xgb",
+  "load_start": "2025-09-01",
+  "eval_start": "2026-01-01",
+  "end_date": "2026-03-20",
+  "requested_tickers": 503,
+  "processed_tickers": 503,
+  "failed_tickers": 0,
+  "mean_strategy_total_return": -0.010721584799856212,
+  "median_strategy_total_return": -0.022462869109854622,
+  "mean_strategy_sharpe_ratio": 0.28828484424058926,
+  "median_strategy_sharpe_ratio": -0.5703927510047909,
+  "mean_strategy_max_drawdown": -0.12614180095387179,
+  "mean_benchmark_total_return": -0.008731443426613434,
+  "median_benchmark_total_return": -0.037373069965311645,
+  "mean_benchmark_sharpe_ratio": 0.9803963962792775,
+  "tickers_with_positive_strategy_return": 206,
+  "tickers_with_positive_benchmark_return": 204,
+  "tickers_beating_benchmark_total_return": 240,
+  "mean_num_rows": 53.99403578528827,
+  "failed_examples": []
+}
