@@ -12,7 +12,7 @@ DEFAULT_MODEL_PATH = os.path.join(
 )
 
 class LlamaLoader:
-    def __init__(self, model_path: str = DEFAULT_MODEL_PATH, n_ctx: int = 2048):
+    def __init__(self, model_path: str = DEFAULT_MODEL_PATH, n_ctx: int = 8192):
         self.model_path = model_path
         self.n_ctx = n_ctx
         self.model = None

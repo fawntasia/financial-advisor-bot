@@ -58,6 +58,12 @@ Provide practical educational guidance that is useful, specific, and honest:
 5) Mention key risks and uncertainty (model confidence, volatility, concentration risk).
 6) Keep it non-personalized.
 7) Use {investment_amount} consistently. Do not replace it with another amount.
+8) Output sections with exact headings:
+   - Strategy A (Aggressive)
+   - Strategy B (Conservative)
+9) In each strategy, each ticker line must include both percentage and dollar split using this format:
+   - TICKER: XX% ({investment_amount}-based dollars)
+10) Grounding rule: use Candidate Signals as the primary ticker source. If you include a non-candidate ticker, label it as fallback due to limited local signals.
 
 Do not discuss crypto or blockchains unless explicitly asked."""
 

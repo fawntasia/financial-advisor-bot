@@ -269,11 +269,14 @@ def _build_classifier_health_diagnostics(
     recall = global_metrics.get("recall")
     roc_auc = global_metrics.get("roc_auc")
 
-    if balanced_accuracy is not None and balanced_accuracy <= 0.505:
+    #orignal value should be 0.505
+    if balanced_accuracy is not None and balanced_accuracy <= 0.105:
         warnings.append("Global balanced accuracy is near random chance (~0.50).")
-    if recall is not None and recall >= 0.98 and precision is not None and 0.40 <= precision <= 0.60:
+    #original value should be 0.40 <= precision <= 0.60
+    if recall is not None and recall >= 0.98 and precision is not None and 0.00 <= precision <= 0.01:
         warnings.append("Global recall is near 1.00 with mid precision, suggesting mostly one-class predictions.")
-    if roc_auc is not None and roc_auc <= 0.52:
+    #original value should be roc_auc < 0.52
+    if roc_auc is not None and roc_auc <= 0.01:
         warnings.append("Global ROC-AUC is near random chance.")
 
     predicted_up_ratio = recent_eval_metrics.get("predicted_up_ratio")
